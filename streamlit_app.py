@@ -108,6 +108,8 @@ with col3:
 with col4:
     st.metric("Exact Matches", exact_count, "Zero Shadow Candidates")
 
+st.info("💡 **Shadow Diff = 0.000%** indicates an **EXACT Match** where Open price was identical to Low/High price (zero shadow). **5m Entry Diff (%)** shows the opening candle move from Open price.")
+
 st.markdown("---")
 
 # Main Filtered Stock Tables
@@ -123,18 +125,19 @@ def format_df_for_display(stock_list):
     df = pd.DataFrame(stock_list).copy()
     
     cols = [
-        "ticker", "setup_type", "open", "entry_price", "ltp", 
+        "ticker", "setup_type", "open", "entry_price", "entry_move_pct", "ltp", 
         "change_pct", "vol_surge", "stoploss", "target_1", "target_2", "diff_from_open_pct", "exact_match"
     ]
     df = df[cols]
     
     df.columns = [
-        "Ticker", "Setup", "Open (₹)", "5m Entry (₹)", "LTP (₹)", 
-        "Change (%)", "Vol Surge", "Stoploss (₹)", "Target 1 (₹)", "Target 2 (₹)", "Diff (%)", "Exact"
+        "Ticker", "Setup", "Open (₹)", "5m Entry (₹)", "5m Move (%)", "LTP (₹)", 
+        "Change (%)", "Vol Surge", "Stoploss (₹)", "Target 1 (₹)", "Target 2 (₹)", "Shadow Diff (%)", "Exact"
     ]
     
     # Format precision for Streamlit Cloud rendering
-    df["Diff (%)"] = df["Diff (%)"].apply(lambda x: f"{float(x):.3f}%")
+    df["Shadow Diff (%)"] = df["Shadow Diff (%)"].apply(lambda x: f"{float(x):.3f}%")
+    df["5m Move (%)"] = df["5m Move (%)"].apply(lambda x: f"{float(x):+.2f}%")
     df["Change (%)"] = df["Change (%)"].apply(lambda x: f"{float(x):+.2f}%")
     df["Vol Surge"] = df["Vol Surge"].apply(lambda x: f"{float(x):.2f}x")
     df["Open (₹)"] = df["Open (₹)"].apply(lambda x: f"₹{float(x):,.2f}")

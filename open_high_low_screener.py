@@ -166,6 +166,7 @@ def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
             
         setup_type = "OPEN_LOW" if is_open_low else "OPEN_HIGH"
         signal = "BULLISH (BUY)" if is_open_low else "BEARISH (SELL)"
+        entry_move_pct = round(((entry_price - day_open) / day_open) * 100, 2)
         
         if is_open_low:
             stoploss = round(day_low * 0.997, 2)
@@ -195,6 +196,7 @@ def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
             "high": day_high,
             "low": day_low,
             "entry_price": entry_price,
+            "entry_move_pct": entry_move_pct,
             "ltp": latest_close,
             "pnl_pct": pnl_pct,
             "risk_per_share": risk_amt,
