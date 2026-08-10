@@ -120,42 +120,57 @@ tab_all, tab_bull, tab_bear = st.tabs([
 def format_df_for_display(stock_list):
     if not stock_list:
         return pd.DataFrame()
-    df = pd.DataFrame(stock_list)
+    df = pd.DataFrame(stock_list).copy()
+    
     cols = [
         "ticker", "setup_type", "open", "entry_price", "ltp", 
         "change_pct", "vol_surge", "stoploss", "target_1", "target_2", "diff_from_open_pct", "exact_match"
     ]
     df = df[cols]
+    
     df.columns = [
         "Ticker", "Setup", "Open (₹)", "5m Entry (₹)", "LTP (₹)", 
         "Change (%)", "Vol Surge", "Stoploss (₹)", "Target 1 (₹)", "Target 2 (₹)", "Diff (%)", "Exact"
     ]
+    
+    # Format precision for Streamlit Cloud rendering
+    df["Diff (%)"] = df["Diff (%)"].apply(lambda x: f"{float(x):.3f}%")
+    df["Change (%)"] = df["Change (%)"].apply(lambda x: f"{float(x):+.2f}%")
+    df["Vol Surge"] = df["Vol Surge"].apply(lambda x: f"{float(x):.2f}x")
+    df["Open (₹)"] = df["Open (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
+    df["5m Entry (₹)"] = df["5m Entry (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
+    df["LTP (₹)"] = df["LTP (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
+    df["Stoploss (₹)"] = df["Stoploss (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
+    df["Target 1 (₹)"] = df["Target 1 (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
+    df["Target 2 (₹)"] = df["Target 2 (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
+    df["Exact"] = df["Exact"].apply(lambda x: "⭐ EXACT" if x else "Standard")
+    
     return df
 
 with tab_all:
     if filtered_stocks:
         df_display = format_df_for_display(filtered_stocks)
-        st.dataframe(df_display, use_container_width=True, height=450)
+        st.dataframe(df_display, use_container_width=True, height=480)
     else:
         st.info("No stock setups match current tolerance criteria.")
 
 with tab_bull:
     if open_low_stocks:
         df_bull = format_df_for_display(open_low_stocks)
-        st.dataframe(df_bull, use_container_width=True, height=450)
+        st.dataframe(df_bull, use_container_width=True, height=480)
     else:
         st.info("No Bullish Open=Low setups detected.")
 
 with tab_bear:
     if open_high_stocks:
         df_bear = format_df_for_display(open_high_stocks)
-        st.dataframe(df_bear, use_container_width=True, height=450)
+        st.dataframe(df_bear, use_container_width=True, height=480)
     else:
         st.info("No Bearish Open=High setups detected.")
 
 # CSV Export Button
 if filtered_stocks:
-    df_export = format_df_for_display(filtered_stocks)
+    df_export = pd.DataFrame(filtered_stocks)
     csv_bytes = df_export.to_csv(index=False).encode('utf-8')
     st.download_button(
         label="📥 Download CSV Report",
