@@ -1,0 +1,286 @@
+"""
+Nifty F&O Pure Stock Screener - Open = Low & Open = High
+========================================================================
+Features:
+1. Pure Yahoo Finance 5-Minute Post-Open Entry Price Engine (09:20 AM IST)
+2. 215+ Nifty F&O & High-Volume Momentum Stock Universe
+3. Intraday Open=Low (Bullish) & Open=High (Bearish) Setup Analytics
+"""
+
+import sys
+import os
+import time
+import json
+import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import pandas as pd
+import requests
+
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding='utf-8')
+
+# 215+ Complete Nifty F&O & High-Volume Momentum Stock Universe
+NIFTY_FO_STOCKS = [
+    "KAYNES", "HYUNDAI", "PAYTM", "PGEL", "GMRAIRPORT", "KFINTECH", "IRFC",
+    "HDFCBANK", "ICICIBANK", "SBIN", "AXISBANK", "KOTAKBANK", "INDUSINDBK", "BANKBARODA",
+    "CANBK", "PNB", "FEDERALBNK", "AUBANK", "BANDHANBNK", "IDFCFIRSTB", "BAJFINANCE",
+    "BAJAJFINSV", "CHOLAFIN", "SHRIRAMFIN", "MUTHOOTFIN", "RECLTD", "PFC", "ICICIPRULI",
+    "SBILIFE", "HDFCLIFE", "LICHSGFIN", "HDFCAMC", "BSE", "MCX", "MANAPPURAM", "YESBANK",
+    "JIOFIN", "MOTILALOFS", "MFSL", "SBICARD", "RBLBANK", "TCS", "INFY", "HCLTECH", "WIPRO",
+    "TECHM", "PERSISTENT", "COFORGE", "MPHASIS", "LTTS", "TATAELXSI", "NAUKRI", "OFSS",
+    "MARUTI", "M&M", "HEROMOTOCO", "EICHERMOT", "TVSMOTOR", "BOSCHLTD", "BHARATFORG",
+    "MOTHERSON", "BALKRISIND", "MRF", "ASHOKLEY", "ESCORTS", "BAJAJ-AUTO", "APOLLOTYRE",
+    "RELIANCE", "NTPC", "ONGC", "POWERGRID", "COALINDIA", "GAIL", "BPCL", "IOC",
+    "HINDPETRO", "TATAPOWER", "JSWENERGY", "NHPC", "PETRONET", "OIL", "ADANIGREEN", "ADANIPOWER",
+    "ATGL", "IGL", "MGL", "GUJGASLTD", "TATASTEEL", "JSWSTEEL", "HINDALCO", "JINDALSTEL", "VEDL",
+    "NMDC", "NATIONALUM", "SAIL", "APLAPOLLO", "ITC", "HINDUNILVR", "NESTLEIND", "BRITANNIA",
+    "TATACONSUM", "VBL", "DABUR", "GODREJCP", "COLPAL", "MARICO", "UNITDSPR", "BERGEPAINT",
+    "PIDILITIND", "BALRAMCHIN", "UBL", "SUNPHARMA", "DRREDDY", "CIPLA", "DIVISLAB", "LUPIN",
+    "AUROPHARMA", "TORNTPHARM", "ALKEM", "BIOCON", "GLENMARK", "APOLLOHOSP", "GRANULES",
+    "SYNGENE", "IPCALAB", "METROPOLIS", "LALPATHLAB", "MAXHEALTH", "NAVINFLUOR", "LT", "BEL",
+    "HAL", "SIEMENS", "ABB", "BHEL", "CGPOWER", "HAVELLS", "POLYCAB", "VOLTAS", "DIXON",
+    "ASTRAL", "CUMMINSIND", "TIINDIA", "RVNL", "MAZDOCK", "CONCOR", "IRCTC", "CROMPTON",
+    "ULTRACEMCO", "GRASIM", "DLF", "AMBUJACEM", "ACC", "DALBHARAT", "GODREJPROP",
+    "PHOENIXLTD", "OBEROIRALTY", "SHREECEM", "RAMCOCEM", "BHARTIARTL", "IDEA", "INDUSTOWER",
+    "SRF", "DEEPAKNTR", "UPL", "CHAMBLFERT", "ATUL", "PIIND", "AARTIIND", "ADANIENT",
+    "ADANIPORTS", "TRENT", "TITAN", "ASIANPAINT", "INDIGO", "JUBLFOOD", "BATAINDIA",
+    "PAGEIND", "ZOMATO", "SUZLON", "NYKAA", "KALYANKJIL", "PVRINOX", "SUNTV", "ZEEL",
+    "ABFRL", "EXIDEIND", "SWIGGY", "PRESTIGE", "BSOFT", "KEI", "POLICYBZR", "TATATECH",
+    "HUDCO", "NBCC", "SJVN", "CENTRALBK", "PATANJALI", "AWL", "DMART", "SOLARINDS",
+    "HFCL", "JYOTICNC", "AETHER"
+]
+
+def fetch_single_stock_5m(ticker, session):
+    """
+    Fetches 5-minute candles to extract exact 5-min post-open Entry Price (09:20 AM candle close).
+    """
+    symbol = ticker if ticker.startswith("^") else f"{ticker}.NS"
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=5m"
+    
+    try:
+        resp = session.get(url, timeout=5)
+        if resp.status_code != 200:
+            return None
+        
+        data = resp.json()
+        result = data['chart']['result'][0]
+        timestamps = result['timestamp']
+        indicators = result['indicators']['quote'][0]
+        
+        opens = indicators.get('open', [])
+        highs = indicators.get('high', [])
+        lows = indicators.get('low', [])
+        closes = indicators.get('close', [])
+        volumes = indicators.get('volume', [])
+        
+        dates = [datetime.datetime.fromtimestamp(ts) for ts in timestamps]
+        if not dates:
+            return None
+            
+        today_date = dates[-1].date()
+        today_indices = [i for i in range(len(dates)) if dates[i].date() == today_date and opens[i] is not None and closes[i] is not None]
+        
+        if not today_indices:
+            return None
+            
+        first_idx = today_indices[0]
+        latest_idx = today_indices[-1]
+        
+        day_open = float(opens[first_idx])
+        entry_price = float(closes[first_idx])
+        
+        day_high = float(max([highs[i] for i in today_indices if highs[i] is not None]))
+        day_low = float(min([lows[i] for i in today_indices if lows[i] is not None]))
+        latest_close = float(closes[latest_idx])
+        
+        prev_indices = [i for i in range(len(dates)) if dates[i].date() < today_date and closes[i] is not None]
+        if prev_indices:
+            prev_close = float(closes[prev_indices[-1]])
+        else:
+            prev_close = day_open
+            
+        day_volume = sum([volumes[i] for i in today_indices if volumes[i] is not None])
+        avg_vol = sum([v for v in volumes if v is not None]) / len(dates) * len(today_indices) if len(dates) > 0 else day_volume
+        vol_surge = round(day_volume / avg_vol, 2) if avg_vol > 0 else 1.0
+        
+        chg_pct = round(((latest_close - prev_close) / prev_close) * 100, 2)
+        
+        return {
+            "ticker": ticker,
+            "day_open": round(day_open, 2),
+            "entry_price": round(entry_price, 2),
+            "day_high": round(day_high, 2),
+            "day_low": round(day_low, 2),
+            "latest_close": round(latest_close, 2),
+            "prev_close": round(prev_close, 2),
+            "change_pct": chg_pct,
+            "volume": day_volume,
+            "vol_surge": vol_surge
+        }
+    except Exception:
+        return None
+
+def fetch_all_stocks_parallel(tickers):
+    print(f"[*] Parallel fetching 5-min candles for {len(set(tickers))} Nifty F&O & Momentum stocks via Yahoo Finance...")
+    session = requests.Session()
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    })
+    
+    results = {}
+    with ThreadPoolExecutor(max_workers=30) as executor:
+        future_to_ticker = {executor.submit(fetch_single_stock_5m, ticker, session): ticker for ticker in set(tickers)}
+        for future in as_completed(future_to_ticker):
+            res = future.result()
+            if res:
+                results[res["ticker"]] = res
+                
+    print(f"[✓] Successfully retrieved 5-min candles for {len(results)} stocks.")
+    return results
+
+def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
+    results = []
+    scan_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    for ticker, data in stock_dict.items():
+        day_open = data['day_open']
+        entry_price = data['entry_price']
+        day_high = data['day_high']
+        day_low = data['day_low']
+        latest_close = data['latest_close']
+        chg_pct = data['change_pct']
+        vol_surge = data['vol_surge']
+        day_volume = data['volume']
+        
+        if day_open <= 0:
+            continue
+            
+        open_low_diff_pct = abs(day_open - day_low) / day_open * 100
+        is_open_low = open_low_diff_pct <= tolerance_pct
+        
+        open_high_diff_pct = abs(day_open - day_high) / day_open * 100
+        is_open_high = open_high_diff_pct <= tolerance_pct
+        
+        if not (is_open_low or is_open_high):
+            continue
+            
+        setup_type = "OPEN_LOW" if is_open_low else "OPEN_HIGH"
+        signal = "BULLISH (BUY)" if is_open_low else "BEARISH (SELL)"
+        
+        if is_open_low:
+            stoploss = round(day_low * 0.997, 2)
+            risk = round(entry_price - stoploss, 2)
+            risk_amt = max(risk, round(entry_price * 0.005, 2))
+            target_1 = round(entry_price + (risk_amt * 1.5), 2)
+            target_2 = round(entry_price + (risk_amt * 2.5), 2)
+            diff_from_open = round(open_low_diff_pct, 3)
+            pnl_pct = round(((latest_close - entry_price) / entry_price) * 100, 2)
+        else:
+            stoploss = round(day_high * 1.003, 2)
+            risk = round(stoploss - entry_price, 2)
+            risk_amt = max(risk, round(entry_price * 0.005, 2))
+            target_1 = round(entry_price - (risk_amt * 1.5), 2)
+            target_2 = round(entry_price - (risk_amt * 2.5), 2)
+            diff_from_open = round(open_high_diff_pct, 3)
+            pnl_pct = round(((entry_price - latest_close) / entry_price) * 100, 2)
+            
+        vwap = round((day_high + day_low + latest_close) / 3, 2)
+        above_vwap = latest_close >= vwap
+        
+        results.append({
+            "ticker": ticker,
+            "setup_type": setup_type,
+            "signal": signal,
+            "open": day_open,
+            "high": day_high,
+            "low": day_low,
+            "entry_price": entry_price,
+            "ltp": latest_close,
+            "pnl_pct": pnl_pct,
+            "risk_per_share": risk_amt,
+            "change_pct": chg_pct,
+            "diff_from_open_pct": diff_from_open,
+            "volume": day_volume,
+            "vol_surge": vol_surge,
+            "vwap": vwap,
+            "above_vwap": above_vwap,
+            "stoploss": stoploss,
+            "target_1": target_1,
+            "target_2": target_2,
+            "exact_match": diff_from_open < 0.02
+        })
+        
+    open_low_stocks = [r for r in results if r["setup_type"] == "OPEN_LOW"]
+    open_high_stocks = [r for r in results if r["setup_type"] == "OPEN_HIGH"]
+    
+    open_low_stocks.sort(key=lambda x: (x["exact_match"], x["vol_surge"], x["change_pct"]), reverse=True)
+    open_high_stocks.sort(key=lambda x: (x["exact_match"], x["vol_surge"], -x["change_pct"]), reverse=True)
+
+    return {
+        "scan_time": scan_time,
+        "total_scanned": len(stock_dict),
+        "open_low_count": len(open_low_stocks),
+        "open_high_count": len(open_high_stocks),
+        "open_low_stocks": open_low_stocks,
+        "open_high_stocks": open_high_stocks,
+        "all_matches": open_low_stocks + open_high_stocks
+    }
+
+def print_cli_table(results):
+    print("\n" + "="*105)
+    print(f"  NIFTY F&O INTRADAY YAHOO SCREENER | SCAN TIME: {results['scan_time']}")
+    print(f"  Total Scanned: {results['total_scanned']} | Open=Low (Bullish): {results['open_low_count']} | Open=High (Bearish): {results['open_high_count']}")
+    print("="*105)
+
+    print("\n[+] OPEN = LOW STOCKS (BULLISH BUY SETUPS - 5-MIN ENTRY):")
+    print("-" * 105)
+    print(f"{'Ticker':<12} {'Open (Rs)':<10} {'5m Entry':<12} {'LTP (Rs)':<10} {'PnL %':<8} {'Risk (Rs)':<10} {'Stoploss':<10} {'Target 1':<10}")
+    print("-" * 105)
+    for s in results['open_low_stocks']:
+        exact_star = "*" if s['exact_match'] else " "
+        print(f"{s['ticker'] + exact_star:<12} {s['open']:<10.2f} {s['entry_price']:<12.2f} {s['ltp']:<10.2f} {s['pnl_pct']:<+8.2f} {s['risk_per_share']:<10.2f} {s['stoploss']:<10.2f} {s['target_1']:<10.2f}")
+    if not results['open_low_stocks']:
+        print("  No Open=Low setups detected in current tolerance threshold.")
+        
+    print("\n[-] OPEN = HIGH STOCKS (BEARISH SELL SETUPS - 5-MIN ENTRY):")
+    print("-" * 105)
+    print(f"{'Ticker':<12} {'Open (Rs)':<10} {'5m Entry':<12} {'LTP (Rs)':<10} {'PnL %':<8} {'Risk (Rs)':<10} {'Stoploss':<10} {'Target 1':<10}")
+    print("-" * 105)
+    for s in results['open_high_stocks']:
+        exact_star = "*" if s['exact_match'] else " "
+        print(f"{s['ticker'] + exact_star:<12} {s['open']:<10.2f} {s['entry_price']:<12.2f} {s['ltp']:<10.2f} {s['pnl_pct']:<+8.2f} {s['risk_per_share']:<10.2f} {s['stoploss']:<10.2f} {s['target_1']:<10.2f}")
+    if not results['open_high_stocks']:
+        print("  No Open=High setups detected in current tolerance threshold.")
+    print("=" * 105 + "\n")
+
+def run_screener(tolerance_pct=0.15):
+    stock_dict = fetch_all_stocks_parallel(NIFTY_FO_STOCKS) or {}
+    results = analyze_open_high_low(stock_dict, tolerance_pct=tolerance_pct)
+    print_cli_table(results)
+    
+    json_path = os.path.join(os.path.dirname(__file__), "open_high_low_data.json")
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=2)
+        
+    public_dir = os.path.join(os.path.dirname(__file__), "public")
+    if os.path.exists(public_dir):
+        public_json_path = os.path.join(public_dir, "open_high_low_data.json")
+        with open(public_json_path, "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=2)
+
+    if results["all_matches"]:
+        df_export = pd.DataFrame(results["all_matches"])
+        csv_filename = f"open_high_low_screener_latest.csv"
+        csv_path = os.path.join(os.path.dirname(__file__), csv_filename)
+        df_export.to_csv(csv_path, index=False)
+        
+    return results
+
+if __name__ == "__main__":
+    tolerance = 0.15
+    if len(sys.argv) > 1:
+        try:
+            tolerance = float(sys.argv[1])
+        except ValueError:
+            pass
+    run_screener(tolerance_pct=tolerance)
