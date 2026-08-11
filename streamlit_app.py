@@ -242,15 +242,10 @@ else:
     st.title("🚀 Nifty 500 MA Bull Stack + Weekly ST Screener")
     st.caption("Weekly ST(10,3) ✅  Price > 50 SMA > 100 SMA > 200 SMA ✅  |  Bullish Open=Low Intraday Setups (Buy Only)")
 
-    st.sidebar.header("⚙️ Nifty 500 Controls")
-
-    tolerance = st.sidebar.slider(
-        "Open Buffer Tolerance (%)",
-        min_value=0.00,
-        max_value=0.50,
-        value=0.20,
-        step=0.05,
-        help="Buffer for intraday Open=Low setup detection"
+    strict_only = st.sidebar.checkbox(
+        "Zap Exact Matches Only (Diff < 0.02%)",
+        value=False,
+        help="Only show Open=Low setups with near-zero lower shadow"
     )
 
     if st.sidebar.button("🔄 Run Nifty 500 Scanner", use_container_width=True, type="primary"):
@@ -264,7 +259,12 @@ else:
         nifty500_results = get_nifty500_scan(tolerance)
 
     qualified  = nifty500_results.get("qualified_stocks", [])
-    setups     = nifty500_results.get("momentum_setups",  [])
+    raw_setups = nifty500_results.get("momentum_setups",  [])
+
+    setups = [
+        s for s in raw_setups
+        if s.get("diff_from_open_pct", 99) <= tolerance and (not strict_only or s.get("exact_match"))
+    ]
     mom_conf   = [s for s in setups if s.get("momentum_confirmed")]
 
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -273,9 +273,9 @@ else:
     with col2:
         st.metric("✅ Bull Stack Qualified", nifty500_results.get("qualified_count", 0), "Weekly ST + 50>100>200 SMA")
     with col3:
-        st.metric("🟢 Open = Low Setups", nifty500_results.get("momentum_setup_count", 0), "Bullish Buy Candidates")
+        st.metric("🟢 Open = Low Setups", len(setups), "Bullish Buy Candidates")
     with col4:
-        st.metric("🔥 Momentum Conf.", nifty500_results.get("momentum_confirmed_count", 0), "5-min close > Prev Day High")
+        st.metric("🔥 Momentum Conf.", len(mom_conf), "5-min close > Prev Day High")
     with col5:
         st.metric("📅 Last Scan", nifty500_results.get("scan_time", "—")[:16], "")
 
@@ -292,8 +292,8 @@ else:
         df = pd.DataFrame(stock_list)
         base_cols = ["ticker", "current_price", "change_pct", "vol_surge",
                      "weekly_supertrend", "sma_50", "sma_100", "sma_200", "ma_distance_pct"]
-        extra = ["setup_type", "entry_price", "stoploss", "target_1", "target_2",
-                 "diff_from_open_pct", "pnl_pct", "momentum_confirmed"] if intraday else []
+        extra = ["day_open", "day_low", "entry_price", "stoploss", "target_1", "target_2",
+                 "diff_from_open_pct", "exact_match", "pnl_pct", "momentum_confirmed"] if intraday else []
         cols = [c for c in base_cols + extra if c in df.columns]
         df = df[cols].copy()
 
@@ -301,23 +301,27 @@ else:
             "ticker": "Ticker", "current_price": "Price (₹)", "change_pct": "Day Chg%",
             "vol_surge": "Vol Surge", "weekly_supertrend": "Weekly ST (₹)",
             "sma_50": "50 SMA (₹)", "sma_100": "100 SMA (₹)", "sma_200": "200 SMA (₹)",
-            "ma_distance_pct": "50 SMA Dist%", "setup_type": "Setup", "entry_price": "Entry (₹)",
-            "stoploss": "Stoploss (₹)", "target_1": "Target 1 (₹)", "target_2": "Target 2 (₹)",
-            "diff_from_open_pct": "Shadow%", "pnl_pct": "PnL%", "momentum_confirmed": "🔥 Mom"
+            "ma_distance_pct": "50 SMA Dist%", "day_open": "Open (₹)", "day_low": "Low (₹)",
+            "entry_price": "5m Entry (₹)", "stoploss": "Stoploss (₹)",
+            "target_1": "Target 1 (₹)", "target_2": "Target 2 (₹)",
+            "diff_from_open_pct": "Shadow Diff (%)", "exact_match": "Exact",
+            "pnl_pct": "PnL%", "momentum_confirmed": "🔥 Mom"
         }
         df.columns = [rename.get(c, c) for c in df.columns]
 
         for col in ["Price (₹)", "Weekly ST (₹)", "50 SMA (₹)", "100 SMA (₹)", "200 SMA (₹)",
-                    "Entry (₹)", "Stoploss (₹)", "Target 1 (₹)", "Target 2 (₹)"]:
+                    "Open (₹)", "Low (₹)", "5m Entry (₹)", "Stoploss (₹)", "Target 1 (₹)", "Target 2 (₹)"]:
             if col in df.columns:
                 df[col] = df[col].apply(lambda x: f"₹{float(x):,.2f}" if x is not None and not pd.isna(x) else "—")
 
-        for col in ["Day Chg%", "50 SMA Dist%", "PnL%", "Shadow%"]:
+        for col in ["Day Chg%", "50 SMA Dist%", "PnL%", "Shadow Diff (%)"]:
             if col in df.columns:
                 df[col] = df[col].apply(lambda x: f"{float(x):+.2f}%" if x is not None and not pd.isna(x) else "—")
 
         if "Vol Surge" in df.columns:
             df["Vol Surge"] = df["Vol Surge"].apply(lambda x: f"{float(x):.2f}x" if x is not None else "—")
+        if "Exact" in df.columns:
+            df["Exact"] = df["Exact"].apply(lambda x: "⭐ EXACT" if x else "Standard")
         if "🔥 Mom" in df.columns:
             df["🔥 Mom"] = df["🔥 Mom"].apply(lambda x: "🔥 YES" if x else "—")
         return df

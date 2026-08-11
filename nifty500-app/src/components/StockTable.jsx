@@ -103,8 +103,10 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
                 <SortTh field="sma_200">200 SMA</SortTh>
                 <SortTh field="ma_distance_pct">50 SMA Dist%</SortTh>
                 <SortTh field="vol_surge">Vol Surge</SortTh>
-                {showIntraday && <SortTh field="setup_type">Setup</SortTh>}
+                {showIntraday && <SortTh field="day_open">Open (₹)</SortTh>}
+                {showIntraday && <SortTh field="day_low">Low (₹)</SortTh>}
                 {showIntraday && <SortTh field="entry_price">Entry (₹)</SortTh>}
+                {showIntraday && <SortTh field="diff_from_open_pct">Shadow%</SortTh>}
                 {showIntraday && <SortTh field="stoploss">Stoploss</SortTh>}
                 {showIntraday && <SortTh field="target_1">Target 1</SortTh>}
                 {showIntraday && <SortTh field="pnl_pct">PnL%</SortTh>}
@@ -124,11 +126,7 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontWeight: '800', fontSize: '0.92rem' }}>{s.ticker}</span>
                         {isMom && <span className="badge badge-momentum" style={{fontSize:'0.6rem',padding:'2px 6px'}}>🔥 MOM</span>}
-                        {!isMom && s.setup_type && (
-                          <span className={`badge ${isBull ? 'badge-bullish' : 'badge-bearish'}`} style={{fontSize:'0.6rem',padding:'2px 6px'}}>
-                            {isBull ? '↑ OL' : '↓ OH'}
-                          </span>
-                        )}
+                        {s.exact_match && <span className="badge badge-momentum" style={{fontSize:'0.6rem',padding:'2px 6px',background:'rgba(245,158,11,0.2)',color:'#f59e0b'}}>⭐ EXACT</span>}
                       </div>
                     </td>
                     <td className="mono" style={{ fontWeight: '700', color: 'var(--accent)' }}>{fmt(s.current_price)}</td>
@@ -144,17 +142,10 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
                       +{Number(s.ma_distance_pct).toFixed(2)}%
                     </td>
                     <td className="mono" style={{ color: 'var(--text-muted)' }}>{Number(s.vol_surge).toFixed(2)}x</td>
-                    {showIntraday && (
-                      <td>
-                        {s.setup_type
-                          ? <span className={`badge ${isBull ? 'badge-bullish' : 'badge-bearish'}`}>
-                              {isBull ? <ArrowUpRight size={12}/> : <ArrowDownRight size={12}/>}
-                              {isBull ? 'OPEN=LOW' : 'OPEN=HIGH'}
-                            </span>
-                          : <span style={{color:'var(--text-dim)',fontSize:'0.75rem'}}>—</span>}
-                      </td>
-                    )}
+                    {showIntraday && <td className="mono" style={{ color: 'var(--text-main)' }}>{fmt(s.day_open)}</td>}
+                    {showIntraday && <td className="mono" style={{ color: 'var(--text-main)' }}>{fmt(s.day_low)}</td>}
                     {showIntraday && <td className="mono" style={{ color: 'var(--accent-cyan)', fontWeight: '700' }}>{fmt(s.entry_price)}</td>}
+                    {showIntraday && <td className="mono" style={{ color: s.diff_from_open_pct < 0.02 ? 'var(--momentum)' : 'var(--text-muted)', fontSize: '0.8rem' }}>{s.diff_from_open_pct != null ? `${s.diff_from_open_pct}%` : '—'}</td>}
                     {showIntraday && <td className="mono" style={{ color: 'var(--bearish)', fontSize: '0.8rem' }}>{fmt(s.stoploss)}</td>}
                     {showIntraday && <td className="mono" style={{ color: 'var(--bullish)', fontSize: '0.8rem' }}>{fmt(s.target_1)}</td>}
                     {showIntraday && (

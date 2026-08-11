@@ -287,9 +287,8 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
     diff_from_open_pct = None
     pnl_pct            = None
     momentum_confirmed = False
-    prev_day_high      = None
-    prev_day_low       = None
-    ltp                = current_price
+    day_open_val = None
+    day_low_val  = None
 
     if fivemin:
         all_dates = fivemin['dates']
@@ -307,6 +306,8 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
                 day_high  = max(float(fivemin['highs'][i])  for i in t_idx if fivemin['highs'][i])
                 day_low   = min(float(fivemin['lows'][i])   for i in t_idx if fivemin['lows'][i])
                 ltp       = float(fivemin['closes'][latest])
+                day_open_val = round(day_open, 2)
+                day_low_val  = round(day_low, 2)
 
                 prev_idx = [i for i in range(len(all_dates))
                             if all_dates[i] < today and fivemin['closes'][i] is not None]
@@ -336,10 +337,14 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
               else "BULL STACK + OPEN=LOW" if setup_type == 'OPEN_LOW'
               else "MA BULL STACK")
 
+    exact_match = (diff_from_open_pct is not None) and (diff_from_open_pct < 0.02)
+
     return {
         "ticker":              ticker,
         "current_price":       round(current_price, 2),
         "ltp":                 round(ltp, 2),
+        "day_open":            day_open_val,
+        "day_low":             day_low_val,
         "change_pct":          change_pct,
         "volume":              day_vol,
         "vol_surge":           vol_surge,
@@ -356,6 +361,7 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
         "target_1":            target_1,
         "target_2":            target_2,
         "diff_from_open_pct":  diff_from_open_pct,
+        "exact_match":         exact_match,
         "pnl_pct":             pnl_pct,
         "momentum_confirmed":  momentum_confirmed,
         "prev_day_high":       round(prev_day_high, 2) if prev_day_high else None,
@@ -437,16 +443,15 @@ def run_nifty500_scan(tickers=None, tolerance_pct=0.20, st_period=10, st_mult=3)
     print(f"  Qualified: {len(qualified)} | With Intraday Setup: {len(momentum_setups)}")
     print(f"{'='*95}")
     if momentum_setups:
-        print(f"\n[🔥] QUALIFIED + INTRADAY SETUP:")
-        print(f"  {'Ticker':<12} {'Setup':<12} {'Price':<10} {'Entry':<10} "
-              f"{'ST Wk':<10} {'SMA50':<10} {'SMA100':<10} {'SMA200':<10} {'MOM'}")
-        print(f"  {'-'*95}")
+        print(f"\n[🔥] QUALIFIED + BULLISH OPEN=LOW SETUPS:")
+        print(f"  {'Ticker':<12} {'Open (Rs)':<10} {'Low (Rs)':<10} {'5m Entry':<10} {'Shadow%':<10} {'Exact':<8} {'ST Wk':<10} {'SMA50':<10} {'MOM'}")
+        print(f"  {'-'*105}")
         for s in momentum_setups:
             m = "🔥" if s['momentum_confirmed'] else "  "
-            print(f"  {s['ticker']:<12} {(s['setup_type'] or ''):<12} "
-                  f"{s['current_price']:<10.2f} {(s['entry_price'] or 0):<10.2f} "
-                  f"{s['weekly_supertrend']:<10.2f} {s['sma_50']:<10.2f} "
-                  f"{s['sma_100']:<10.2f} {s['sma_200']:<10.2f} {m}")
+            ex = "⭐ EXACT" if s['exact_match'] else "Standard"
+            print(f"  {s['ticker']:<12} {(s['day_open'] or 0):<10.2f} {(s['day_low'] or 0):<10.2f} "
+                  f"{(s['entry_price'] or 0):<10.2f} {s['diff_from_open_pct']:<10.3f}% {ex:<8} "
+                  f"{s['weekly_supertrend']:<10.2f} {s['sma_50']:<10.2f} {m}")
     print(f"\n[✅] MA BULL STACK QUALIFIED (NO INTRADAY SETUP)  — Top 20:")
     print(f"  {'Ticker':<12} {'Price':<10} {'Chg%':<8} {'MA Dist%':<10} "
           f"{'ST Weekly':<12} {'SMA50':<10} {'SMA100':<10} {'SMA200':<10}")
