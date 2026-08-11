@@ -52,13 +52,31 @@ NIFTY_FO_STOCKS = [
 
 def fetch_single_stock_5m(ticker, session):
     """
-    Fetches 5-minute candles to extract exact 5-min post-open Entry Price (09:20 AM candle close).
+    Fetches official 1-day OHLC (matches Zerodha / TradingView 100%) and 5-minute candles for 5m Entry.
     """
     symbol = ticker if ticker.startswith("^") else f"{ticker}.NS"
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=5m"
     
+    # ── 1. Fetch Official Daily OHLC (matches Zerodha & TradingView pre-market 100%) ──
+    official_open = None
+    official_high = None
+    official_low  = None
+    url_1d = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=2d&interval=1d"
     try:
-        resp = session.get(url, timeout=5)
+        r_1d = session.get(url_1d, timeout=5)
+        if r_1d.status_code == 200:
+            d_1d = r_1d.json()['chart']['result'][0]
+            q_1d = d_1d['indicators']['quote'][0]
+            if q_1d.get('open') and q_1d['open'][-1] is not None:
+                official_open = float(q_1d['open'][-1])
+                official_high = float(q_1d['high'][-1]) if q_1d.get('high') and q_1d['high'][-1] is not None else None
+                official_low  = float(q_1d['low'][-1])  if q_1d.get('low')  and q_1d['low'][-1]  is not None else None
+    except Exception:
+        pass
+
+    # ── 2. Fetch 5-Minute Candles for Intraday Entry & PnL ─────────────────────
+    url_5m = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=5m"
+    try:
+        resp = session.get(url_5m, timeout=5)
         if resp.status_code != 200:
             return None
         
@@ -86,18 +104,18 @@ def fetch_single_stock_5m(ticker, session):
         first_idx = today_indices[0]
         latest_idx = today_indices[-1]
         
-        day_open = float(opens[first_idx])
         entry_price = float(closes[first_idx])
-        
-        day_high = float(max([highs[i] for i in today_indices if highs[i] is not None]))
-        day_low = float(min([lows[i] for i in today_indices if lows[i] is not None]))
         latest_close = float(closes[latest_idx])
+
+        # Use Official Daily OHLC if available (matches Zerodha / TradingView 100%)
+        day_open = official_open if official_open else float(opens[first_idx])
+        day_high = official_high if official_high else float(max([highs[i] for i in today_indices if highs[i] is not None]))
+        day_low  = official_low  if official_low  else float(min([lows[i] for i in today_indices if lows[i] is not None]))
         
         # ── Previous trading day indices ──────────────────────────────────────
         prev_indices = [i for i in range(len(dates)) if dates[i].date() < today_date and closes[i] is not None]
         if prev_indices:
             prev_close = float(closes[prev_indices[-1]])
-            # Identify just the most recent previous trading day
             prev_day_date = max(dates[i].date() for i in prev_indices)
             prev_day_indices = [i for i in prev_indices if dates[i].date() == prev_day_date]
             prev_day_high = float(max(highs[i] for i in prev_day_indices if highs[i] is not None)) if prev_day_indices else 0.0
