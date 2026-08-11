@@ -4,15 +4,18 @@ import { X, ArrowUpRight, ArrowDownRight, Zap, Target, Shield, LogIn, TrendingUp
 export default function StockDetailModal({ stock, onClose }) {
   if (!stock) return null;
 
-  const isBullish = stock.setup_type === 'OPEN_LOW';
-  const openPrice = stock.open;
-  const highPrice = stock.high;
-  const lowPrice = stock.low;
-  const entryPrice = stock.entry_price || stock.ltp;
-  const ltpPrice = stock.ltp;
+  const isBullish     = stock.setup_type === 'OPEN_LOW';
+  const isMomentum    = stock.momentum_confirmed === true;
+  const openPrice     = stock.open;
+  const highPrice     = stock.high;
+  const lowPrice      = stock.low;
+  const entryPrice    = stock.entry_price || stock.ltp;
+  const ltpPrice      = stock.ltp;
   const stoplossPrice = stock.stoploss;
-  const riskAmount = stock.risk_per_share || Math.abs(entryPrice - stoplossPrice).toFixed(2);
-  const pnlPct = stock.pnl_pct !== undefined ? stock.pnl_pct : (isBullish ? ((ltpPrice - entryPrice)/entryPrice*100) : ((entryPrice - ltpPrice)/entryPrice*100));
+  const riskAmount    = stock.risk_per_share || Math.abs(entryPrice - stoplossPrice).toFixed(2);
+  const pnlPct        = stock.pnl_pct !== undefined ? stock.pnl_pct : (isBullish ? ((ltpPrice - entryPrice)/entryPrice*100) : ((entryPrice - ltpPrice)/entryPrice*100));
+  const prevDayHigh   = stock.prev_day_high || 0;
+  const prevDayLow    = stock.prev_day_low  || 0;
 
   const totalRange = max(highPrice - lowPrice, 0.01);
   const bodyTop = Math.max(openPrice, entryPrice);
@@ -47,8 +50,12 @@ export default function StockDetailModal({ stock, onClose }) {
           maxWidth: '720px',
           padding: '28px',
           position: 'relative',
-          border: isBullish ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(244, 63, 94, 0.4)',
-          boxShadow: isBullish ? '0 0 40px rgba(16, 185, 129, 0.15)' : '0 0 40px rgba(244, 63, 94, 0.15)'
+        border: isMomentum
+          ? '1px solid rgba(245,158,11,0.5)'
+          : isBullish ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(244, 63, 94, 0.4)',
+        boxShadow: isMomentum
+          ? '0 0 40px rgba(245,158,11,0.18)'
+          : isBullish ? '0 0 40px rgba(16, 185, 129, 0.15)' : '0 0 40px rgba(244, 63, 94, 0.15)'
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -77,17 +84,65 @@ export default function StockDetailModal({ stock, onClose }) {
 
         {/* Modal Header */}
         <div style={{ marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <h2 style={{ fontSize: '1.6rem', fontWeight: '800' }}>{stock.ticker}</h2>
             <span className={isBullish ? "badge badge-bullish" : "badge badge-bearish"}>
               {isBullish ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
               {isBullish ? "OPEN = LOW BUY SETUPS" : "OPEN = HIGH SELL SETUPS"}
             </span>
+            {isMomentum && (
+              <span style={{
+                background: 'rgba(245,158,11,0.18)', color: '#f59e0b',
+                border: '1px solid rgba(245,158,11,0.4)',
+                borderRadius: '6px', padding: '3px 10px',
+                fontSize: '0.75rem', fontWeight: '800', letterSpacing: '0.05em'
+              }}>
+                🔥 MOMENTUM CONFIRMED
+              </span>
+            )}
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
             9:30 AM Trade Matrix (Fixed Entry Price + Current Live PnL)
           </p>
         </div>
+
+        {/* Momentum Confirmation Banner */}
+        {isMomentum && (
+          <div style={{
+            background: 'rgba(245,158,11,0.10)',
+            border: '1px solid rgba(245,158,11,0.35)',
+            borderRadius: '10px',
+            padding: '12px 16px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexWrap: 'wrap'
+          }}>
+            <div>
+              <div style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: '800', letterSpacing: '0.06em', marginBottom: '2px' }}>
+                🔥 MOMENTUM CONDITION MET
+              </div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                {isBullish
+                  ? `5-min close ₹${entryPrice} is above Prev Day High ₹${prevDayHigh}`
+                  : `5-min close ₹${entryPrice} is below Prev Day Low ₹${prevDayLow}`
+                }
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '2px' }}>PREV DAY HIGH</div>
+                <div className="mono" style={{ fontWeight: '800', color: isBullish ? '#f59e0b' : 'var(--bearish)' }}>₹{prevDayHigh.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '2px' }}>PREV DAY LOW</div>
+                <div className="mono" style={{ fontWeight: '800', color: isBullish ? 'var(--bearish)' : '#f59e0b' }}>₹{prevDayLow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Candle Anatomy Bar Visualization */}
         <div style={{ 

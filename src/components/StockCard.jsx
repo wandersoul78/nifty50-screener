@@ -1,25 +1,48 @@
 import React from 'react';
 import { ArrowUpRight, ArrowDownRight, Zap, Target, Shield, LogIn, TrendingUp, TrendingDown } from 'lucide-react';
 
-export default function StockCard({ stock, onSelectStock }) {
-  const isBullish = stock.setup_type === 'OPEN_LOW';
+export default function StockCard({ stock, onClick }) {
+  const isBullish  = stock.setup_type === 'OPEN_LOW';
+  const isMomentum = stock.momentum_confirmed === true;
   const entryPrice = stock.entry_price || stock.ltp;
-  const ltpPrice = stock.ltp;
-  const pnlPct = stock.pnl_pct !== undefined ? stock.pnl_pct : (isBullish ? ((ltpPrice - entryPrice)/entryPrice*100) : ((entryPrice - ltpPrice)/entryPrice*100));
+  const ltpPrice   = stock.ltp;
+  const pnlPct     = stock.pnl_pct !== undefined ? stock.pnl_pct : (isBullish ? ((ltpPrice - entryPrice)/entryPrice*100) : ((entryPrice - ltpPrice)/entryPrice*100));
 
   return (
     <div 
       className="glass-card" 
-      onClick={() => onSelectStock(stock)}
+      onClick={onClick}
       style={{
         padding: '18px',
         cursor: 'pointer',
         position: 'relative',
         overflow: 'hidden',
-        borderLeft: isBullish ? '4px solid var(--bullish)' : '4px solid var(--bearish)',
+        borderLeft: isMomentum
+          ? '4px solid #f59e0b'
+          : isBullish ? '4px solid var(--bullish)' : '4px solid var(--bearish)',
+        boxShadow: isMomentum ? '0 0 18px rgba(245,158,11,0.12)' : undefined,
         transition: 'transform 0.2s ease, box-shadow 0.2s ease'
       }}
     >
+      {/* Momentum Ribbon */}
+      {isMomentum && (
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          right: '-24px',
+          background: 'linear-gradient(90deg, #f59e0b, #fbbf24)',
+          color: '#000',
+          fontSize: '0.6rem',
+          fontWeight: '800',
+          padding: '3px 30px',
+          transform: 'rotate(35deg)',
+          letterSpacing: '0.06em',
+          zIndex: 2,
+          boxShadow: '0 2px 8px rgba(245,158,11,0.4)'
+        }}>
+          🔥 MOM
+        </div>
+      )}
       {/* Top Header Row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
         <div>
@@ -27,6 +50,15 @@ export default function StockCard({ stock, onSelectStock }) {
             <h3 style={{ fontSize: '1.15rem', fontWeight: '800', letterSpacing: '-0.01em' }}>
               {stock.ticker}
             </h3>
+            {isMomentum && (
+              <span style={{
+                fontSize: '0.62rem', padding: '2px 6px', borderRadius: '4px',
+                background: 'rgba(245,158,11,0.18)', color: '#f59e0b',
+                fontWeight: '700', letterSpacing: '0.04em'
+              }}>
+                🔥 MOMENTUM
+              </span>
+            )}
             {stock.exact_match && (
               <span className="badge badge-exact" title="Exact Open=Low / Open=High Match">
                 <Zap size={11} /> EXACT

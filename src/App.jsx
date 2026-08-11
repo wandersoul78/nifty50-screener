@@ -11,7 +11,7 @@ export default function App() {
   const [tolerance, setTolerance] = useState(0.20);
   const [strictOnly, setStrictOnly] = useState(false);
   const [selectedStock, setSelectedStock] = useState(null);
-  const [activeTab, setActiveTab] = useState('ALL'); // ALL, BULLISH, BEARISH
+  const [activeTab, setActiveTab] = useState('ALL'); // ALL, BULLISH, BEARISH, MOMENTUM
 
   const loadScreenerData = async () => {
     setLoading(true);
@@ -52,9 +52,11 @@ export default function App() {
 
   const openLowStocks = filteredStocks.filter(s => s.setup_type === 'OPEN_LOW');
   const openHighStocks = filteredStocks.filter(s => s.setup_type === 'OPEN_HIGH');
+  const momentumStocks = filteredStocks.filter(s => s.momentum_confirmed);
 
-  const displayedStocks = activeTab === 'BULLISH' ? openLowStocks 
-                        : activeTab === 'BEARISH' ? openHighStocks 
+  const displayedStocks = activeTab === 'BULLISH'  ? openLowStocks
+                        : activeTab === 'BEARISH'  ? openHighStocks
+                        : activeTab === 'MOMENTUM' ? momentumStocks
                         : filteredStocks;
 
   const handleExportCSV = () => {
@@ -102,7 +104,7 @@ export default function App() {
       />
 
       {/* Hero KPI Stats Grid */}
-      <div className="grid grid-4" style={{ marginBottom: '24px' }}>
+      <div className="grid grid-4" style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(5, 1fr)' }}>
         <div className="glass-card kpi-card">
           <div className="kpi-title">Nifty F&O Stocks Scanned</div>
           <div className="kpi-value mono" style={{ color: 'var(--accent-cyan)' }}>
@@ -133,6 +135,14 @@ export default function App() {
             {filteredStocks.filter(s => s.exact_match).length}
           </div>
           <div className="kpi-subtitle" style={{ color: 'var(--accent-amber)' }}>Zero Shadow Candidates</div>
+        </div>
+
+        <div className="glass-card kpi-card" style={{ borderLeft: '4px solid #f59e0b', background: 'rgba(245, 158, 11, 0.06)' }}>
+          <div className="kpi-title" style={{ color: '#f59e0b' }}>🔥 Momentum Confirmed</div>
+          <div className="kpi-value mono" style={{ color: '#f59e0b' }}>
+            {momentumStocks.length}
+          </div>
+          <div className="kpi-subtitle" style={{ color: '#f59e0b' }}>5-min close crosses Prev Day extreme</div>
         </div>
       </div>
 
@@ -168,6 +178,7 @@ export default function App() {
         allCount={filteredStocks.length}
         bullishCount={openLowStocks.length}
         bearishCount={openHighStocks.length}
+        momentumCount={momentumStocks.length}
         onSelectStock={setSelectedStock}
       />
 

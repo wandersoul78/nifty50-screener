@@ -93,12 +93,20 @@ def fetch_single_stock_5m(ticker, session):
         day_low = float(min([lows[i] for i in today_indices if lows[i] is not None]))
         latest_close = float(closes[latest_idx])
         
+        # ── Previous trading day indices ──────────────────────────────────────
         prev_indices = [i for i in range(len(dates)) if dates[i].date() < today_date and closes[i] is not None]
         if prev_indices:
             prev_close = float(closes[prev_indices[-1]])
+            # Identify just the most recent previous trading day
+            prev_day_date = max(dates[i].date() for i in prev_indices)
+            prev_day_indices = [i for i in prev_indices if dates[i].date() == prev_day_date]
+            prev_day_high = float(max(highs[i] for i in prev_day_indices if highs[i] is not None)) if prev_day_indices else 0.0
+            prev_day_low  = float(min(lows[i]  for i in prev_day_indices if lows[i]  is not None)) if prev_day_indices else 0.0
         else:
-            prev_close = day_open
-            
+            prev_close    = day_open
+            prev_day_high = 0.0
+            prev_day_low  = 0.0
+
         day_volume = sum([volumes[i] for i in today_indices if volumes[i] is not None])
         avg_vol = sum([v for v in volumes if v is not None]) / len(dates) * len(today_indices) if len(dates) > 0 else day_volume
         vol_surge = round(day_volume / avg_vol, 2) if avg_vol > 0 else 1.0
@@ -113,6 +121,8 @@ def fetch_single_stock_5m(ticker, session):
             "day_low": round(day_low, 2),
             "latest_close": round(latest_close, 2),
             "prev_close": round(prev_close, 2),
+            "prev_day_high": round(prev_day_high, 2),
+            "prev_day_low": round(prev_day_low, 2),
             "change_pct": chg_pct,
             "volume": day_volume,
             "vol_surge": vol_surge
@@ -143,14 +153,16 @@ def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
     scan_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     for ticker, data in stock_dict.items():
-        day_open = data['day_open']
-        entry_price = data['entry_price']
-        day_high = data['day_high']
-        day_low = data['day_low']
+        day_open     = data['day_open']
+        entry_price  = data['entry_price']
+        day_high     = data['day_high']
+        day_low      = data['day_low']
         latest_close = data['latest_close']
-        chg_pct = data['change_pct']
-        vol_surge = data['vol_surge']
-        day_volume = data['volume']
+        chg_pct      = data['change_pct']
+        vol_surge    = data['vol_surge']
+        day_volume   = data['volume']
+        prev_day_high = data.get('prev_day_high', 0.0)
+        prev_day_low  = data.get('prev_day_low', 0.0)
         
         if day_open <= 0:
             continue
@@ -163,10 +175,19 @@ def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
         
         if not (is_open_low or is_open_high):
             continue
-            
+
         setup_type = "OPEN_LOW" if is_open_low else "OPEN_HIGH"
         signal = "BULLISH (BUY)" if is_open_low else "BEARISH (SELL)"
         entry_move_pct = round(((entry_price - day_open) / day_open) * 100, 2)
+
+        # ── Momentum Qualification Filter ─────────────────────────────────────
+        # OPEN=LOW: 5-min close must break ABOVE previous day's high
+        # OPEN=HIGH: 5-min close must break BELOW previous day's low
+        momentum_confirmed = False
+        if is_open_low and prev_day_high > 0:
+            momentum_confirmed = entry_price > prev_day_high
+        elif is_open_high and prev_day_low > 0:
+            momentum_confirmed = entry_price < prev_day_low
         
         if is_open_low:
             stoploss = round(day_low * 0.997, 2)
@@ -209,22 +230,29 @@ def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
             "stoploss": stoploss,
             "target_1": target_1,
             "target_2": target_2,
-            "exact_match": diff_from_open < 0.02
+            "exact_match": diff_from_open < 0.02,
+            "momentum_confirmed": momentum_confirmed,
+            "prev_day_high": round(prev_day_high, 2),
+            "prev_day_low": round(prev_day_low, 2)
         })
         
-    open_low_stocks = [r for r in results if r["setup_type"] == "OPEN_LOW"]
+    open_low_stocks  = [r for r in results if r["setup_type"] == "OPEN_LOW"]
     open_high_stocks = [r for r in results if r["setup_type"] == "OPEN_HIGH"]
-    
-    open_low_stocks.sort(key=lambda x: (x["exact_match"], x["vol_surge"], x["change_pct"]), reverse=True)
-    open_high_stocks.sort(key=lambda x: (x["exact_match"], x["vol_surge"], -x["change_pct"]), reverse=True)
+    momentum_stocks  = [r for r in results if r["momentum_confirmed"]]
+
+    open_low_stocks.sort(key=lambda x: (x["momentum_confirmed"], x["exact_match"], x["vol_surge"], x["change_pct"]), reverse=True)
+    open_high_stocks.sort(key=lambda x: (x["momentum_confirmed"], x["exact_match"], x["vol_surge"], -x["change_pct"]), reverse=True)
+    momentum_stocks.sort(key=lambda x: (x["vol_surge"], abs(x["change_pct"])), reverse=True)
 
     return {
         "scan_time": scan_time,
         "total_scanned": len(stock_dict),
         "open_low_count": len(open_low_stocks),
         "open_high_count": len(open_high_stocks),
+        "momentum_count": len(momentum_stocks),
         "open_low_stocks": open_low_stocks,
         "open_high_stocks": open_high_stocks,
+        "momentum_stocks": momentum_stocks,
         "all_matches": open_low_stocks + open_high_stocks
     }
 

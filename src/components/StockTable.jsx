@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, ArrowUpDown, ArrowUpRight, ArrowDownRight, Zap, Target, Shield, TrendingUp, TrendingDown } from 'lucide-react';
 
-export default function StockTable({ stocks, onSelectStock }) {
+export default function StockTable({ stocks, onSelectStock, momentumCount = 0 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('vol_surge');
   const [sortAsc, setSortAsc] = useState(false);
@@ -20,9 +20,10 @@ export default function StockTable({ stocks, onSelectStock }) {
     const matchesSearch = stock.ticker.toLowerCase().includes(searchTerm.toLowerCase());
     if (!matchesSearch) return false;
 
-    if (activeFilter === 'OPEN_LOW') return stock.setup_type === 'OPEN_LOW';
+    if (activeFilter === 'OPEN_LOW')  return stock.setup_type === 'OPEN_LOW';
     if (activeFilter === 'OPEN_HIGH') return stock.setup_type === 'OPEN_HIGH';
     if (activeFilter === 'VOL_SURGE') return stock.vol_surge >= 1.5;
+    if (activeFilter === 'MOMENTUM')  return stock.momentum_confirmed === true;
     return true;
   });
 
@@ -66,10 +67,11 @@ export default function StockTable({ stocks, onSelectStock }) {
         {/* Filter Pills */}
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
-            { id: 'ALL', label: `All Setups (${stocks.length})` },
-            { id: 'OPEN_LOW', label: `🟢 Open = Low (${stocks.filter(s => s.setup_type === 'OPEN_LOW').length})` },
+            { id: 'ALL',       label: `All Setups (${stocks.length})` },
+            { id: 'OPEN_LOW',  label: `🟢 Open = Low (${stocks.filter(s => s.setup_type === 'OPEN_LOW').length})` },
             { id: 'OPEN_HIGH', label: `🔴 Open = High (${stocks.filter(s => s.setup_type === 'OPEN_HIGH').length})` },
-            { id: 'VOL_SURGE', label: `⚡ Vol Surge > 1.5x (${stocks.filter(s => s.vol_surge >= 1.5).length})` }
+            { id: 'VOL_SURGE', label: `⚡ Vol Surge >1.5x (${stocks.filter(s => s.vol_surge >= 1.5).length})` },
+            { id: 'MOMENTUM',  label: `🔥 Momentum (${stocks.filter(s => s.momentum_confirmed).length})` }
           ].map(tab => (
             <button
               key={tab.id}
@@ -80,9 +82,14 @@ export default function StockTable({ stocks, onSelectStock }) {
                 fontSize: '0.8rem',
                 fontWeight: '600',
                 cursor: 'pointer',
-                border: '1px solid var(--border-color)',
-                background: activeFilter === tab.id ? 'var(--accent-indigo)' : 'rgba(255, 255, 255, 0.04)',
-                color: activeFilter === tab.id ? '#fff' : 'var(--text-muted)',
+                border: tab.id === 'MOMENTUM'
+                  ? '1px solid #f59e0b'
+                  : '1px solid var(--border-color)',
+                background: activeFilter === tab.id
+                  ? (tab.id === 'MOMENTUM' ? '#f59e0b' : 'var(--accent-indigo)')
+                  : (tab.id === 'MOMENTUM' ? 'rgba(245,158,11,0.08)' : 'rgba(255,255,255,0.04)'),
+                color: activeFilter === tab.id ? '#fff'
+                  : (tab.id === 'MOMENTUM' ? '#f59e0b' : 'var(--text-muted)'),
                 transition: 'all 0.2s ease'
               }}
             >
@@ -110,6 +117,16 @@ export default function StockTable({ stocks, onSelectStock }) {
               <th onClick={() => handleSort('entry_price')} style={{ cursor: 'pointer', color: 'var(--accent-cyan)' }}>
                 5-Min Entry (09:20 AM) <ArrowUpDown size={12} />
               </th>
+              {activeFilter === 'MOMENTUM' && (
+                <>
+                  <th onClick={() => handleSort('prev_day_high')} style={{ cursor: 'pointer', color: '#f59e0b' }}>
+                    Prev Day High <ArrowUpDown size={12} />
+                  </th>
+                  <th onClick={() => handleSort('prev_day_low')} style={{ cursor: 'pointer', color: '#f59e0b' }}>
+                    Prev Day Low <ArrowUpDown size={12} />
+                  </th>
+                </>
+              )}
               <th onClick={() => handleSort('ltp')} style={{ cursor: 'pointer' }}>
                 Current LTP (₹) <ArrowUpDown size={12} />
               </th>
@@ -127,22 +144,41 @@ export default function StockTable({ stocks, onSelectStock }) {
           <tbody>
             {sortedStocks.length === 0 ? (
               <tr>
-                <td colSpan="8" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
-                  No matching Open=Low or Open=High stocks found. Try adjusting tolerance or filters.
+                <td colSpan={activeFilter === 'MOMENTUM' ? 10 : 8} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
+                  {activeFilter === 'MOMENTUM'
+                    ? 'No momentum-confirmed stocks yet. Momentum requires 5-min close to cross the previous day\'s High/Low.'
+                    : 'No matching Open=Low or Open=High stocks found. Try adjusting tolerance or filters.'}
                 </td>
               </tr>
             ) : (
               sortedStocks.map((stock) => {
-                const isBullish = stock.setup_type === 'OPEN_LOW';
+                const isBullish  = stock.setup_type === 'OPEN_LOW';
                 const entryPrice = stock.entry_price || stock.ltp;
-                const ltpPrice = stock.ltp;
-                const pnlPct = stock.pnl_pct !== undefined ? stock.pnl_pct : (isBullish ? ((ltpPrice - entryPrice)/entryPrice*100) : ((entryPrice - ltpPrice)/entryPrice*100));
+                const ltpPrice   = stock.ltp;
+                const pnlPct     = stock.pnl_pct !== undefined ? stock.pnl_pct : (isBullish ? ((ltpPrice - entryPrice)/entryPrice*100) : ((entryPrice - ltpPrice)/entryPrice*100));
+                const isMomentum = stock.momentum_confirmed;
 
                 return (
-                  <tr key={stock.ticker} onClick={() => onSelectStock(stock)} style={{ cursor: 'pointer' }}>
+                  <tr
+                    key={stock.ticker}
+                    onClick={() => onSelectStock(stock)}
+                    style={{
+                      cursor: 'pointer',
+                      background: isMomentum ? 'rgba(245,158,11,0.04)' : undefined
+                    }}
+                  >
                     <td style={{ fontWeight: '700' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span>{stock.ticker}</span>
+                        {isMomentum && (
+                          <span style={{
+                            fontSize: '0.62rem', padding: '2px 6px', borderRadius: '4px',
+                            background: 'rgba(245,158,11,0.18)', color: '#f59e0b',
+                            fontWeight: '700', letterSpacing: '0.04em'
+                          }}>
+                            🔥 MOM
+                          </span>
+                        )}
                         {stock.exact_match && (
                           <span className="badge badge-exact" style={{ fontSize: '0.65rem', padding: '2px 6px' }}>
                             EXACT
@@ -165,6 +201,17 @@ export default function StockTable({ stocks, onSelectStock }) {
                     <td className="mono" style={{ fontWeight: '800', color: 'var(--accent-cyan)' }}>
                       ₹{entryPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
+
+                    {activeFilter === 'MOMENTUM' && (
+                      <>
+                        <td className="mono" style={{ fontWeight: '700', color: isBullish ? 'var(--bullish)' : 'var(--bearish)' }}>
+                          ₹{(stock.prev_day_high || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="mono" style={{ fontWeight: '700', color: isBullish ? 'var(--bearish)' : 'var(--bullish)' }}>
+                          ₹{(stock.prev_day_low || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                      </>
+                    )}
 
                     <td className="mono" style={{ fontWeight: '700' }}>
                       ₹{ltpPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
