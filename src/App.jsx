@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from './components/Header';
 import StockCard from './components/StockCard';
 import StockTable from './components/StockTable';
@@ -30,6 +30,14 @@ export default function App() {
 
   useEffect(() => {
     loadScreenerData();
+    // Auto-refresh every 5 minutes during market hours
+    const interval = setInterval(() => {
+      const now = new Date();
+      const h = now.getHours(), m = now.getMinutes();
+      const inMarketHours = (h > 9 || (h === 9 && m >= 15)) && (h < 15 || (h === 15 && m <= 30));
+      if (inMarketHours) loadScreenerData();
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleRunScanner = async () => {
@@ -60,23 +68,24 @@ export default function App() {
                         : filteredStocks;
 
   const handleExportCSV = () => {
-    if (!filteredStocks.length) return;
+    const exportList = displayedStocks.length ? displayedStocks : filteredStocks;
+    if (!exportList.length) return;
     
-    const headers = ["Ticker", "Setup", "LTP", "ChangePct", "VolSurge", "Open", "Low", "High", "Stoploss", "Target1", "ExactMatch"];
+    const headers = [
+      "Ticker", "Setup", "Open", "5mEntry", "LTP", "PnL%",
+      "ChangePct", "VolSurge", "Stoploss", "Target1", "Target2",
+      "ShadowDiff", "ExactMatch", "MomentumConfirmed", "PrevDayHigh", "PrevDayLow",
+      "VWAP", "AboveVWAP", "Risk"
+    ];
     const csvRows = [
       headers.join(","),
-      ...filteredStocks.map(s => [
-        s.ticker,
-        s.setup_type,
-        s.ltp,
-        s.change_pct,
-        s.vol_surge,
-        s.open,
-        s.low,
-        s.high,
-        s.stoploss,
-        s.target_1,
-        s.exact_match
+      ...exportList.map(s => [
+        s.ticker, s.setup_type,
+        s.open, s.entry_price, s.ltp, s.pnl_pct,
+        s.change_pct, s.vol_surge, s.stoploss, s.target_1, s.target_2,
+        s.diff_from_open_pct, s.exact_match,
+        s.momentum_confirmed, s.prev_day_high, s.prev_day_low,
+        s.vwap, s.above_vwap, s.risk_per_share
       ].join(","))
     ];
 
@@ -84,8 +93,9 @@ export default function App() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `yahoo_stocks_screener_${Date.now()}.csv`;
+    a.download = `nifty_fo_screener_${Date.now()}.csv`;
     a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   return (
@@ -103,7 +113,25 @@ export default function App() {
         setStrictOnly={setStrictOnly}
       />
 
-      {/* Hero KPI Stats Grid */}
+      {/* Loading Skeleton — shown only on very first load when no data exists yet */}
+      {loading && !screenerData && (
+        <div style={{ marginBottom: '24px' }}>
+          <div className="grid grid-4" style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(5, 1fr)' }}>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="glass-card kpi-card skeleton" style={{ height: '90px' }} />
+            ))}
+          </div>
+          <div className="grid grid-3" style={{ marginBottom: '24px' }}>
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="glass-card skeleton" style={{ height: '180px' }} />
+            ))}
+          </div>
+          <div className="glass-card skeleton" style={{ height: '320px' }} />
+        </div>
+      )}
+
+      {/* Hero KPI Stats Grid — hidden during initial skeleton load */}
+      {(!loading || screenerData) && (
       <div className="grid grid-4" style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(5, 1fr)' }}>
         <div className="glass-card kpi-card">
           <div className="kpi-title">Nifty F&O Stocks Scanned</div>
@@ -137,38 +165,48 @@ export default function App() {
           <div className="kpi-subtitle" style={{ color: 'var(--accent-amber)' }}>Zero Shadow Candidates</div>
         </div>
 
-        <div className="glass-card kpi-card" style={{ borderLeft: '4px solid #f59e0b', background: 'rgba(245, 158, 11, 0.06)' }}>
-          <div className="kpi-title" style={{ color: '#f59e0b' }}>🔥 Momentum Confirmed</div>
-          <div className="kpi-value mono" style={{ color: '#f59e0b' }}>
+        <div className="glass-card kpi-card" style={{ borderLeft: '4px solid var(--momentum)', background: 'rgba(245, 158, 11, 0.06)' }}>
+          <div className="kpi-title" style={{ color: 'var(--momentum)' }}>🔥 Momentum Confirmed</div>
+          <div className="kpi-value mono" style={{ color: 'var(--momentum)' }}>
             {momentumStocks.length}
           </div>
-          <div className="kpi-subtitle" style={{ color: '#f59e0b' }}>5-min close crosses Prev Day extreme</div>
+          <div className="kpi-subtitle" style={{ color: 'var(--momentum)' }}>5-min close crosses Prev Day extreme</div>
         </div>
       </div>
+      )} {/* end KPI conditional */}
 
       {/* Top Priority High-Probability Cards */}
-      {filteredStocks.length > 0 && (
-        <div style={{ marginBottom: '32px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Zap size={20} color="var(--accent-amber)" /> Top High-Volume Priority Candidates
-            </h2>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Sorted by Volume Surge & Setup Strength
-            </span>
+      {(() => {
+        const cardStocks = activeTab === 'MOMENTUM' ? momentumStocks
+                         : activeTab === 'BULLISH'  ? openLowStocks
+                         : activeTab === 'BEARISH'  ? openHighStocks
+                         : filteredStocks;
+        const cardTitle  = activeTab === 'MOMENTUM' ? '🔥 Top Momentum Picks'
+                         : activeTab === 'BULLISH'  ? '🟢 Top Bullish Setups'
+                         : activeTab === 'BEARISH'  ? '🔴 Top Bearish Setups'
+                         : '⚡ Top High-Volume Priority Candidates';
+        return cardStocks.length > 0 ? (
+          <div style={{ marginBottom: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Zap size={20} color="var(--accent-amber)" /> {cardTitle}
+              </h2>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                Sorted by Volume Surge &amp; Setup Strength
+              </span>
+            </div>
+            <div className="grid grid-3">
+              {cardStocks.slice(0, 6).map(stock => (
+                <StockCard 
+                  key={stock.ticker} 
+                  stock={stock} 
+                  onClick={() => setSelectedStock(stock)} 
+                />
+              ))}
+            </div>
           </div>
-          
-          <div className="grid grid-3">
-            {filteredStocks.slice(0, 6).map(stock => (
-              <StockCard 
-                key={stock.ticker} 
-                stock={stock} 
-                onClick={() => setSelectedStock(stock)} 
-              />
-            ))}
-          </div>
-        </div>
-      )}
+        ) : null;
+      })()} 
 
       {/* Full Tabbed Filter Table */}
       <StockTable 
@@ -178,7 +216,6 @@ export default function App() {
         allCount={filteredStocks.length}
         bullishCount={openLowStocks.length}
         bearishCount={openHighStocks.length}
-        momentumCount={momentumStocks.length}
         onSelectStock={setSelectedStock}
       />
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, ArrowUpDown, ArrowUpRight, ArrowDownRight, Zap, Target, Shield, TrendingUp, TrendingDown } from 'lucide-react';
 
-export default function StockTable({ stocks, onSelectStock, momentumCount = 0 }) {
+export default function StockTable({ stocks, onSelectStock }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('vol_surge');
   const [sortAsc, setSortAsc] = useState(false);

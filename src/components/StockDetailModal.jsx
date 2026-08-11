@@ -102,7 +102,7 @@ export default function StockDetailModal({ stock, onClose }) {
             )}
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
-            9:30 AM Trade Matrix (Fixed Entry Price + Current Live PnL)
+            9:20 AM Trade Matrix (Fixed Entry Price + Current Live PnL)
           </p>
         </div>
 
@@ -168,50 +168,63 @@ export default function StockDetailModal({ stock, onClose }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '8px' }}>
             <span>Low: ₹{lowPrice}</span>
             <span>Open: ₹{openPrice}</span>
-            <span>9:30 AM Entry: ₹{entryPrice}</span>
+            <span>9:20 AM Entry: ₹{entryPrice}</span>
             <span>High: ₹{highPrice}</span>
           </div>
         </div>
 
-        {/* Trade Entry, Stoploss & Targets 3-Card Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+        {/* Trade Entry, Stoploss & Targets 4-Card Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '20px' }}>
           
           {/* Entry Price Card */}
           <div style={{ background: 'rgba(56, 189, 248, 0.08)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700' }}>
-              <LogIn size={14} color="var(--accent-cyan)" /> 9:30 AM ENTRY PRICE
+            <span style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700' }}>
+              <LogIn size={13} color="var(--accent-cyan)" /> 9:20 AM ENTRY
             </span>
-            <span className="mono" style={{ fontSize: '1.3rem', fontWeight: '800', color: 'var(--accent-cyan)', display: 'block', marginTop: '4px' }}>
+            <span className="mono" style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--accent-cyan)', display: 'block', marginTop: '4px' }}>
               ₹{entryPrice}
             </span>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'block', marginTop: '2px' }}>
-              Close of 9:15-9:30 Candle
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)', display: 'block', marginTop: '2px' }}>
+              Close of 9:15–9:20 Candle
             </span>
           </div>
 
           {/* Stoploss Card */}
           <div style={{ background: 'rgba(244, 63, 94, 0.08)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(244, 63, 94, 0.25)' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--bearish)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700' }}>
-              <Shield size={14} color="var(--bearish)" /> STOPLOSS (SL)
+            <span style={{ fontSize: '0.7rem', color: 'var(--bearish)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700' }}>
+              <Shield size={13} color="var(--bearish)" /> STOPLOSS (SL)
             </span>
-            <span className="mono" style={{ fontSize: '1.3rem', fontWeight: '800', color: 'var(--bearish)', display: 'block', marginTop: '4px' }}>
+            <span className="mono" style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--bearish)', display: 'block', marginTop: '4px' }}>
               ₹{stoplossPrice}
             </span>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'block', marginTop: '2px' }}>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)', display: 'block', marginTop: '2px' }}>
               Risk: ₹{riskAmount} / share
             </span>
           </div>
 
-          {/* Target Card */}
+          {/* Target 1 Card */}
           <div style={{ background: 'rgba(16, 185, 129, 0.08)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--bullish)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700' }}>
-              <Target size={14} color="var(--bullish)" /> TARGET 1 (1:1.5)
+            <span style={{ fontSize: '0.7rem', color: 'var(--bullish)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700' }}>
+              <Target size={13} color="var(--bullish)" /> TARGET 1 (1:1.5R)
             </span>
-            <span className="mono" style={{ fontSize: '1.3rem', fontWeight: '800', color: 'var(--bullish)', display: 'block', marginTop: '4px' }}>
+            <span className="mono" style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--bullish)', display: 'block', marginTop: '4px' }}>
               ₹{stock.target_1}
             </span>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'block', marginTop: '2px' }}>
-              Target 2: ₹{stock.target_2}
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)', display: 'block', marginTop: '2px' }}>
+              Reward/Risk = 1.5×
+            </span>
+          </div>
+
+          {/* Target 2 Card */}
+          <div style={{ background: 'rgba(99, 102, 241, 0.08)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(99, 102, 241, 0.3)' }}>
+            <span style={{ fontSize: '0.7rem', color: 'var(--accent-indigo)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700' }}>
+              <Target size={13} color="var(--accent-indigo)" /> TARGET 2 (1:2.5R)
+            </span>
+            <span className="mono" style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--accent-indigo)', display: 'block', marginTop: '4px' }}>
+              ₹{stock.target_2}
+            </span>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)', display: 'block', marginTop: '2px' }}>
+              Reward/Risk = 2.5×
             </span>
           </div>
 

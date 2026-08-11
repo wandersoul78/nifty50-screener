@@ -24,23 +24,26 @@ export default function StockCard({ stock, onClick }) {
         transition: 'transform 0.2s ease, box-shadow 0.2s ease'
       }}
     >
-      {/* Momentum Ribbon */}
+      {/* Momentum Corner Badge — clean pill, no ribbon clipping */}
       {isMomentum && (
         <div style={{
           position: 'absolute',
           top: '10px',
-          right: '-24px',
-          background: 'linear-gradient(90deg, #f59e0b, #fbbf24)',
+          right: '10px',
+          background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
           color: '#000',
-          fontSize: '0.6rem',
+          fontSize: '0.58rem',
           fontWeight: '800',
-          padding: '3px 30px',
-          transform: 'rotate(35deg)',
+          padding: '3px 8px',
+          borderRadius: '20px',
           letterSpacing: '0.06em',
           zIndex: 2,
-          boxShadow: '0 2px 8px rgba(245,158,11,0.4)'
+          boxShadow: '0 2px 8px rgba(245,158,11,0.45)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '3px'
         }}>
-          🔥 MOM
+          🔥 MOMENTUM
         </div>
       )}
       {/* Top Header Row */}

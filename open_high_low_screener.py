@@ -257,30 +257,45 @@ def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
     }
 
 def print_cli_table(results):
+    momentum_stocks = results.get('momentum_stocks', [])
     print("\n" + "="*105)
     print(f"  NIFTY F&O INTRADAY YAHOO SCREENER | SCAN TIME: {results['scan_time']}")
-    print(f"  Total Scanned: {results['total_scanned']} | Open=Low (Bullish): {results['open_low_count']} | Open=High (Bearish): {results['open_high_count']}")
+    print(f"  Total Scanned: {results['total_scanned']} | Open=Low (Bullish): {results['open_low_count']} | Open=High (Bearish): {results['open_high_count']} | Momentum: {results.get('momentum_count', 0)}")
     print("="*105)
 
     print("\n[+] OPEN = LOW STOCKS (BULLISH BUY SETUPS - 5-MIN ENTRY):")
     print("-" * 105)
-    print(f"{'Ticker':<12} {'Open (Rs)':<10} {'5m Entry':<12} {'LTP (Rs)':<10} {'PnL %':<8} {'Risk (Rs)':<10} {'Stoploss':<10} {'Target 1':<10}")
+    print(f"{'Ticker':<12} {'Open (Rs)':<10} {'5m Entry':<12} {'LTP (Rs)':<10} {'PnL %':<8} {'Risk (Rs)':<10} {'Stoploss':<10} {'Target 1':<10} {'MOM':<5}")
     print("-" * 105)
     for s in results['open_low_stocks']:
         exact_star = "*" if s['exact_match'] else " "
-        print(f"{s['ticker'] + exact_star:<12} {s['open']:<10.2f} {s['entry_price']:<12.2f} {s['ltp']:<10.2f} {s['pnl_pct']:<+8.2f} {s['risk_per_share']:<10.2f} {s['stoploss']:<10.2f} {s['target_1']:<10.2f}")
+        mom_flag   = "🔥" if s.get('momentum_confirmed') else "  "
+        print(f"{s['ticker'] + exact_star:<12} {s['open']:<10.2f} {s['entry_price']:<12.2f} {s['ltp']:<10.2f} {s['pnl_pct']:<+8.2f} {s['risk_per_share']:<10.2f} {s['stoploss']:<10.2f} {s['target_1']:<10.2f} {mom_flag}")
     if not results['open_low_stocks']:
         print("  No Open=Low setups detected in current tolerance threshold.")
-        
+
     print("\n[-] OPEN = HIGH STOCKS (BEARISH SELL SETUPS - 5-MIN ENTRY):")
     print("-" * 105)
-    print(f"{'Ticker':<12} {'Open (Rs)':<10} {'5m Entry':<12} {'LTP (Rs)':<10} {'PnL %':<8} {'Risk (Rs)':<10} {'Stoploss':<10} {'Target 1':<10}")
+    print(f"{'Ticker':<12} {'Open (Rs)':<10} {'5m Entry':<12} {'LTP (Rs)':<10} {'PnL %':<8} {'Risk (Rs)':<10} {'Stoploss':<10} {'Target 1':<10} {'MOM':<5}")
     print("-" * 105)
     for s in results['open_high_stocks']:
         exact_star = "*" if s['exact_match'] else " "
-        print(f"{s['ticker'] + exact_star:<12} {s['open']:<10.2f} {s['entry_price']:<12.2f} {s['ltp']:<10.2f} {s['pnl_pct']:<+8.2f} {s['risk_per_share']:<10.2f} {s['stoploss']:<10.2f} {s['target_1']:<10.2f}")
+        mom_flag   = "🔥" if s.get('momentum_confirmed') else "  "
+        print(f"{s['ticker'] + exact_star:<12} {s['open']:<10.2f} {s['entry_price']:<12.2f} {s['ltp']:<10.2f} {s['pnl_pct']:<+8.2f} {s['risk_per_share']:<10.2f} {s['stoploss']:<10.2f} {s['target_1']:<10.2f} {mom_flag}")
     if not results['open_high_stocks']:
         print("  No Open=High setups detected in current tolerance threshold.")
+
+    if momentum_stocks:
+        print("\n[🔥] MOMENTUM CONFIRMED STOCKS (5-MIN CLOSE CROSSES PREV DAY EXTREME):")
+        print("-" * 105)
+        print(f"{'Ticker':<12} {'Setup':<12} {'5m Entry':<12} {'Prev High':<12} {'Prev Low':<12} {'LTP (Rs)':<10} {'PnL %':<8} {'Target 1':<10}")
+        print("-" * 105)
+        for s in momentum_stocks:
+            setup = "OPEN=LOW" if s['setup_type'] == 'OPEN_LOW' else "OPEN=HIGH"
+            print(f"{s['ticker']:<12} {setup:<12} {s['entry_price']:<12.2f} {s['prev_day_high']:<12.2f} {s['prev_day_low']:<12.2f} {s['ltp']:<10.2f} {s['pnl_pct']:<+8.2f} {s['target_1']:<10.2f}")
+    else:
+        print("\n[🔥] No Momentum Confirmed stocks (5-min close did not cross prev day High/Low).")
+
     print("=" * 105 + "\n")
 
 def run_screener(tolerance_pct=0.15):
