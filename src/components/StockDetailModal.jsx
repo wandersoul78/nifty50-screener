@@ -102,7 +102,7 @@ export default function StockDetailModal({ stock, onClose }) {
             )}
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
-            9:20 AM Trade Matrix (Fixed Entry Price + Current Live PnL)
+            Session Open Trade Matrix (Fixed Entry Price + Current Live PnL)
           </p>
         </div>
 
@@ -153,7 +153,7 @@ export default function StockDetailModal({ stock, onClose }) {
           border: '1px solid var(--border-color)' 
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
-            <span>09:15 AM Opening Candle Structure</span>
+            <span>Opening Candle Structure (Session Open)</span>
             <span style={{ color: isBullish ? 'var(--bullish)' : 'var(--bearish)', fontWeight: '700' }}>
               {isBullish ? `Lower Shadow: ${stock.diff_from_open_pct}% (Zero Lower Wick)` : `Upper Shadow: ${stock.diff_from_open_pct}% (Zero Upper Wick)`}
             </span>
@@ -168,7 +168,7 @@ export default function StockDetailModal({ stock, onClose }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '8px' }}>
             <span>Low: ₹{lowPrice}</span>
             <span>Open: ₹{openPrice}</span>
-            <span>9:20 AM Entry: ₹{entryPrice}</span>
+            <span>5m Entry: ₹{entryPrice}</span>
             <span>High: ₹{highPrice}</span>
           </div>
         </div>
@@ -179,13 +179,13 @@ export default function StockDetailModal({ stock, onClose }) {
           {/* Entry Price Card */}
           <div style={{ background: 'rgba(56, 189, 248, 0.08)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
             <span style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700' }}>
-              <LogIn size={13} color="var(--accent-cyan)" /> 9:20 AM ENTRY
+              <LogIn size={13} color="var(--accent-cyan)" /> 5-MIN ENTRY
             </span>
             <span className="mono" style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--accent-cyan)', display: 'block', marginTop: '4px' }}>
               ₹{entryPrice}
             </span>
             <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)', display: 'block', marginTop: '2px' }}>
-              Close of 9:15–9:20 Candle
+              Close of 1st 5-Min Candle
             </span>
           </div>
 

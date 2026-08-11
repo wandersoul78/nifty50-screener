@@ -115,7 +115,7 @@ export default function StockTable({ stocks, onSelectStock }) {
                 Day Open <ArrowUpDown size={12} />
               </th>
               <th onClick={() => handleSort('entry_price')} style={{ cursor: 'pointer', color: 'var(--accent-cyan)' }}>
-                5-Min Entry (09:20 AM) <ArrowUpDown size={12} />
+                5-Min Entry (Session +5m) <ArrowUpDown size={12} />
               </th>
               {activeFilter === 'MOMENTUM' && (
                 <>

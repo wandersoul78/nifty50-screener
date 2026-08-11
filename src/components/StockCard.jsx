@@ -91,7 +91,7 @@ export default function StockCard({ stock, onClick }) {
         marginBottom: '12px'
       }}>
         <div>
-          <span style={{ fontSize: '0.675rem', color: 'var(--accent-cyan)', fontWeight: '700', display: 'block' }}>5-MIN ENTRY (09:20 AM):</span>
+          <span style={{ fontSize: '0.675rem', color: 'var(--accent-cyan)', fontWeight: '700', display: 'block' }}>5-MIN ENTRY (Session Open +5m):</span>
           <span className="mono" style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--accent-cyan)' }}>
             ₹{entryPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </span>
