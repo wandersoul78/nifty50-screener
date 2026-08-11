@@ -258,9 +258,9 @@ def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
     open_high_stocks = [r for r in results if r["setup_type"] == "OPEN_HIGH"]
     momentum_stocks  = [r for r in results if r["momentum_confirmed"]]
 
-    open_low_stocks.sort(key=lambda x: (x["momentum_confirmed"], x["exact_match"], x["vol_surge"], x["change_pct"]), reverse=True)
-    open_high_stocks.sort(key=lambda x: (x["momentum_confirmed"], x["exact_match"], x["vol_surge"], -x["change_pct"]), reverse=True)
-    momentum_stocks.sort(key=lambda x: (x["vol_surge"], abs(x["change_pct"])), reverse=True)
+    open_low_stocks.sort(key=lambda x: (x["change_pct"], x["momentum_confirmed"], x["vol_surge"]), reverse=True)
+    open_high_stocks.sort(key=lambda x: (x["change_pct"], x["momentum_confirmed"], x["vol_surge"]), reverse=True)
+    momentum_stocks.sort(key=lambda x: (x["change_pct"], x["vol_surge"]), reverse=True)
 
     return {
         "scan_time": scan_time,

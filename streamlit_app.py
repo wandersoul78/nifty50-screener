@@ -106,9 +106,10 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
         if s["diff_from_open_pct"] <= tolerance and (not strict_only or s["exact_match"])
     ]
 
-    open_low_stocks   = [s for s in filtered_stocks if s["setup_type"] == "OPEN_LOW"]
-    open_high_stocks  = [s for s in filtered_stocks if s["setup_type"] == "OPEN_HIGH"]
-    momentum_stocks   = [s for s in filtered_stocks if s.get("momentum_confirmed") is True]
+    filtered_stocks.sort(key=lambda s: s.get("change_pct", 0), reverse=True)
+    open_low_stocks   = sorted([s for s in filtered_stocks if s["setup_type"] == "OPEN_LOW"], key=lambda s: s.get("change_pct", 0), reverse=True)
+    open_high_stocks  = sorted([s for s in filtered_stocks if s["setup_type"] == "OPEN_HIGH"], key=lambda s: s.get("change_pct", 0), reverse=True)
+    momentum_stocks   = sorted([s for s in filtered_stocks if s.get("momentum_confirmed") is True], key=lambda s: s.get("change_pct", 0), reverse=True)
     exact_count       = len([s for s in filtered_stocks if s["exact_match"]])
 
     # KPI Summary Section
@@ -268,14 +269,14 @@ else:
     with st.spinner(f"Scanning {len(NIFTY500_STOCKS)} Nifty 500 stocks — Weekly ST(10,3) + MA Bull Stack (Price > 50 > 100 > 200 SMA)…"):
         nifty500_results = get_nifty500_scan(tolerance)
 
-    qualified  = nifty500_results.get("qualified_stocks", [])
+    qualified  = sorted(nifty500_results.get("qualified_stocks", []), key=lambda s: s.get("change_pct", 0), reverse=True)
     raw_setups = nifty500_results.get("momentum_setups",  [])
 
-    setups = [
+    setups = sorted([
         s for s in raw_setups
         if s.get("diff_from_open_pct", 99) <= tolerance and (not strict_only or s.get("exact_match"))
-    ]
-    mom_conf   = [s for s in setups if s.get("momentum_confirmed")]
+    ], key=lambda s: s.get("change_pct", 0), reverse=True)
+    mom_conf   = sorted([s for s in setups if s.get("momentum_confirmed")], key=lambda s: s.get("change_pct", 0), reverse=True)
 
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:

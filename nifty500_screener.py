@@ -406,8 +406,9 @@ def run_nifty500_scan(tickers=None, tolerance_pct=0.20, st_period=10, st_mult=3)
     momentum_setups = [s for s in qualified if s['setup_type'] is not None]
     pure_st         = [s for s in qualified if s['setup_type'] is None]
 
-    momentum_setups.sort(key=lambda x: (x['momentum_confirmed'], x['vol_surge']), reverse=True)
-    pure_st.sort(key=lambda x: x['ma_distance_pct'], reverse=True)
+    momentum_setups.sort(key=lambda x: (x['change_pct'], x['momentum_confirmed'], x['vol_surge']), reverse=True)
+    pure_st.sort(key=lambda x: x['change_pct'], reverse=True)
+    all_qualified = sorted(qualified, key=lambda x: x['change_pct'], reverse=True)
 
     scan_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     results = {
@@ -418,7 +419,7 @@ def run_nifty500_scan(tickers=None, tolerance_pct=0.20, st_period=10, st_mult=3)
         "qualified_count":          len(qualified),
         "momentum_setup_count":     len(momentum_setups),
         "momentum_confirmed_count": len([s for s in momentum_setups if s['momentum_confirmed']]),
-        "qualified_stocks":         pure_st + momentum_setups,
+        "qualified_stocks":         all_qualified,
         "momentum_setups":          momentum_setups,
     }
 

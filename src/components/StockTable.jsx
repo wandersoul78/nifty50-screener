@@ -3,7 +3,7 @@ import { Search, ArrowUpDown, ArrowUpRight, ArrowDownRight, Zap, Target, Shield,
 
 export default function StockTable({ stocks, onSelectStock }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState('vol_surge');
+  const [sortField, setSortField] = useState('change_pct');
   const [sortAsc, setSortAsc] = useState(false);
   const [activeFilter, setActiveFilter] = useState('ALL');
 

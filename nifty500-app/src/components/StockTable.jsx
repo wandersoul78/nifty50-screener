@@ -8,7 +8,7 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
                                      allCount, setupCount, momCount,
                                      onSelectStock }) {
   const [search, setSearch]   = useState('');
-  const [sortField, setSort]  = useState('ma_distance_pct');
+  const [sortField, setSort]  = useState('change_pct');
   const [sortAsc, setSortAsc] = useState(false);
 
   const handleSort = field => {
