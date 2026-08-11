@@ -317,8 +317,7 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
                     prev_day_low  = min(float(fivemin['lows'][i])  for i in pd_idx if fivemin['lows'][i])
 
                 if day_open > 0:
-                    ol_diff = abs(day_open - day_low)  / day_open * 100
-                    oh_diff = abs(day_open - day_high) / day_open * 100
+                    ol_diff = abs(day_open - day_low) / day_open * 100
 
                     if ol_diff <= tolerance_pct:
                         setup_type         = 'OPEN_LOW'
@@ -333,23 +332,8 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
                         if prev_day_high:
                             momentum_confirmed = entry_5m > prev_day_high
 
-                    elif oh_diff <= tolerance_pct:
-                        setup_type         = 'OPEN_HIGH'
-                        diff_from_open_pct = round(oh_diff, 3)
-                        risk_amt    = max(round(day_high * 1.003 - entry_5m, 2),
-                                         round(entry_5m * 0.005, 2))
-                        stoploss    = round(day_high * 1.003, 2)
-                        target_1    = round(entry_5m - risk_amt * 1.5, 2)
-                        target_2    = round(entry_5m - risk_amt * 2.5, 2)
-                        entry_price = round(entry_5m, 2)
-                        pnl_pct     = round((entry_5m - ltp) / entry_5m * 100, 2)
-                        if prev_day_low:
-                            momentum_confirmed = entry_5m < prev_day_low
-
     signal = ("BULL STACK + OPEN=LOW 🔥" if setup_type == 'OPEN_LOW' and momentum_confirmed
               else "BULL STACK + OPEN=LOW" if setup_type == 'OPEN_LOW'
-              else "BULL STACK + OPEN=HIGH 🔥" if setup_type == 'OPEN_HIGH' and momentum_confirmed
-              else "BULL STACK + OPEN=HIGH" if setup_type == 'OPEN_HIGH'
               else "MA BULL STACK")
 
     return {

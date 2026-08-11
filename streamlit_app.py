@@ -240,7 +240,7 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
 else:
 
     st.title("🚀 Nifty 500 MA Bull Stack + Weekly ST Screener")
-    st.caption("Weekly ST(10,3) ✅  Price > 50 SMA > 100 SMA > 200 SMA ✅  |  Bonus: Open=Low/High Intraday Setup Detection")
+    st.caption("Weekly ST(10,3) ✅  Price > 50 SMA > 100 SMA > 200 SMA ✅  |  Bullish Open=Low Intraday Setups (Buy Only)")
 
     st.sidebar.header("⚙️ Nifty 500 Controls")
 
@@ -250,7 +250,7 @@ else:
         max_value=0.50,
         value=0.20,
         step=0.05,
-        help="Buffer for intraday Open=Low/High setup detection"
+        help="Buffer for intraday Open=Low setup detection"
     )
 
     if st.sidebar.button("🔄 Run Nifty 500 Scanner", use_container_width=True, type="primary"):
@@ -273,16 +273,16 @@ else:
     with col2:
         st.metric("✅ Bull Stack Qualified", nifty500_results.get("qualified_count", 0), "Weekly ST + 50>100>200 SMA")
     with col3:
-        st.metric("📈 Intraday Setups", nifty500_results.get("momentum_setup_count", 0), "Open=Low or Open=High")
+        st.metric("🟢 Open = Low Setups", nifty500_results.get("momentum_setup_count", 0), "Bullish Buy Candidates")
     with col4:
-        st.metric("🔥 Momentum Conf.", nifty500_results.get("momentum_confirmed_count", 0), "5-min close crosses Prev extreme")
+        st.metric("🔥 Momentum Conf.", nifty500_results.get("momentum_confirmed_count", 0), "5-min close > Prev Day High")
     with col5:
         st.metric("📅 Last Scan", nifty500_results.get("scan_time", "—")[:16], "")
 
     st.info(
         "💡 **Logic:** Stocks must have **Price > Weekly Supertrend(10,3)** + **Price > 50 SMA > 100 SMA > 200 SMA** "
-        "(MA Bull Stack). Qualified stocks are then checked for today's Open=Low / Open=High intraday setup. "
-        "🔥 Momentum = 5-min close crosses previous day's High/Low."
+        "(MA Bull Stack evaluated in background). Qualified stocks are then checked for today's **Open = Low** (Bullish Buy) setup. "
+        "🔥 Momentum = 5-min close breaks above previous day's High."
     )
     st.markdown("---")
 
@@ -336,17 +336,17 @@ else:
 
     with tab_setup:
         if setups:
-            st.info("These stocks passed Weekly ST + MA Bull Stack (Price > 50 > 100 > 200 SMA) **AND** show an Open=Low or Open=High intraday setup today.")
+            st.info("🟢 These stocks passed Weekly ST + MA Bull Stack (Price > 50 > 100 > 200 SMA) **AND** show a Bullish **Open = Low** buy setup today.")
             st.dataframe(fmt_500(setups, intraday=True), use_container_width=True, height=500)
         else:
-            st.warning("No intraday setups on qualified stocks today.")
+            st.warning("No Bullish Open=Low setups on qualified stocks today.")
 
     with tab_mom:
         if mom_conf:
-            st.info("🔥 **Elite picks**: Weekly ST + MA Bull Stack + Open=Low setup + 5-min close **above previous day's High** (or below prev Low for OPEN=HIGH). Highest conviction trades.")
+            st.info("🔥 **Elite Buy Picks**: Weekly ST + MA Bull Stack + Open=Low setup + 5-min close **above previous day's High**. Highest conviction bullish breakout trades.")
             st.dataframe(fmt_500(mom_conf, intraday=True), use_container_width=True, height=500)
         else:
-            st.warning("No momentum-confirmed setups yet.")
+            st.warning("No momentum-confirmed Open=Low setups yet.")
 
     if qualified:
         csv = pd.DataFrame(qualified).to_csv(index=False).encode("utf-8")
