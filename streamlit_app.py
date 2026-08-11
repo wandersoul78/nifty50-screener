@@ -124,7 +124,7 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
     with col5:
         st.metric("🔥 Momentum", len(momentum_stocks), "5-min close crosses Prev Day extreme")
 
-    st.info("💡 **PnL (Entry → LTP)** shows exact gain/loss from 1st 5-Min Candle Close Entry Price to Current LTP (🟢 Green = Profit, 🔴 Red = Loss). **Shadow Diff = 0.000%** indicates an EXACT Open = Low / Open = High match.")
+    st.info("💡 **PnL (Entry → LTP)** shows exact gain/loss from 1st 5-Min Candle Close Entry Price to Current LTP (🟢 Green = Profit, 🔴 Red = Loss).")
 
     st.markdown("---")
 
@@ -142,7 +142,7 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
         
         cols = [
             "ticker", "setup_type", "open", "entry_price", "ltp", "pnl_pct", 
-            "change_pct", "vol_surge", "stoploss", "target_1", "target_2", "diff_from_open_pct", "exact_match",
+            "change_pct", "vol_surge", "stoploss", "target_1", "target_2", "exact_match",
             "momentum_confirmed"
         ]
         if include_momentum_cols:
@@ -156,7 +156,7 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
             "ticker": "Ticker", "setup_type": "Setup", "open": "Open (₹)",
             "entry_price": "5m Entry (₹)", "ltp": "LTP (₹)", "pnl_pct": "PnL % (Entry→LTP)",
             "change_pct": "Day Chg (%)", "vol_surge": "Vol Surge", "stoploss": "Stoploss (₹)",
-            "target_1": "Target 1 (₹)", "target_2": "Target 2 (₹)", "diff_from_open_pct": "Shadow Diff (%)",
+            "target_1": "Target 1 (₹)", "target_2": "Target 2 (₹)",
             "exact_match": "Exact", "momentum_confirmed": "🔥 Momentum",
             "prev_day_high": "Prev Day High (₹)", "prev_day_low": "Prev Day Low (₹)"
         }
@@ -166,7 +166,6 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
             lambda x: f"🟢 +{float(x):.2f}%" if float(x) >= 0 else f"🔴 {float(x):.2f}%"
         )
         
-        df["Shadow Diff (%)"] = df["Shadow Diff (%)"].apply(lambda x: f"{float(x):.3f}%")
         df["Day Chg (%)"]     = df["Day Chg (%)"].apply(lambda x: f"{float(x):+.2f}%")
         df["Vol Surge"]       = df["Vol Surge"].apply(lambda x: f"{float(x):.2f}x")
         df["Open (₹)"]        = df["Open (₹)"].apply(lambda x: f"₹{float(x):,.2f}")

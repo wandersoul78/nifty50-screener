@@ -83,8 +83,8 @@ def fmt(stock_list, intraday=False):
     df = pd.DataFrame(stock_list)
     base_cols = ["ticker", "current_price", "change_pct", "vol_surge",
                  "monthly_supertrend", "weekly_supertrend", "ma_value", "ma_distance_pct"]
-    extra = ["setup_type", "entry_price", "stoploss", "target_1", "target_2",
-             "diff_from_open_pct", "pnl_pct", "momentum_confirmed"] if intraday else []
+    extra = ["day_open", "day_low", "entry_price", "stoploss", "target_1", "target_2",
+             "exact_match", "pnl_pct", "momentum_confirmed"] if intraday else []
     cols = [c for c in base_cols + extra if c in df.columns]
     df = df[cols].copy()
 
@@ -92,19 +92,19 @@ def fmt(stock_list, intraday=False):
         "ticker": "Ticker", "current_price": "Price (₹)", "change_pct": "Day Chg%",
         "vol_surge": "Vol Surge", "monthly_supertrend": "Monthly ST (₹)",
         "weekly_supertrend": "Weekly ST (₹)", "ma_value": f"{ma_type}({ma_period}) ₹",
-        "ma_distance_pct": "MA Dist%", "setup_type": "Setup", "entry_price": "Entry (₹)",
-        "stoploss": "Stoploss (₹)", "target_1": "Target 1 (₹)", "target_2": "Target 2 (₹)",
-        "diff_from_open_pct": "Shadow%", "pnl_pct": "PnL%", "momentum_confirmed": "🔥 Mom"
+        "ma_distance_pct": "MA Dist%", "day_open": "Open (₹)", "day_low": "Low (₹)",
+        "entry_price": "Entry (₹)", "stoploss": "Stoploss (₹)", "target_1": "Target 1 (₹)", "target_2": "Target 2 (₹)",
+        "exact_match": "Exact", "pnl_pct": "PnL%", "momentum_confirmed": "🔥 Mom"
     }
     df.columns = [rename.get(c, c) for c in df.columns]
 
     for col in ["Price (₹)", "Monthly ST (₹)", "Weekly ST (₹)",
-                f"{ma_type}({ma_period}) ₹", "Entry (₹)", "Stoploss (₹)",
+                f"{ma_type}({ma_period}) ₹", "Open (₹)", "Low (₹)", "Entry (₹)", "Stoploss (₹)",
                 "Target 1 (₹)", "Target 2 (₹)"]:
         if col in df.columns:
             df[col] = df[col].apply(lambda x: f"₹{float(x):,.2f}" if x else "—")
 
-    for col in ["Day Chg%", "MA Dist%", "PnL%", "Shadow%"]:
+    for col in ["Day Chg%", "MA Dist%", "PnL%"]:
         if col in df.columns:
             df[col] = df[col].apply(lambda x: f"{float(x):+.2f}%" if x is not None else "—")
 
