@@ -242,6 +242,17 @@ else:
     st.title("🚀 Nifty 500 MA Bull Stack + Weekly ST Screener")
     st.caption("Weekly ST(10,3) ✅  Price > 50 SMA > 100 SMA > 200 SMA ✅  |  Bullish Open=Low Intraday Setups (Buy Only)")
 
+    st.sidebar.header("⚙️ Nifty 500 Controls")
+
+    tolerance = st.sidebar.slider(
+        "Open Buffer Tolerance (%)",
+        min_value=0.00,
+        max_value=0.50,
+        value=0.20,
+        step=0.05,
+        help="Buffer for intraday Open=Low setup detection"
+    )
+
     strict_only = st.sidebar.checkbox(
         "Zap Exact Matches Only (Diff < 0.02%)",
         value=False,
