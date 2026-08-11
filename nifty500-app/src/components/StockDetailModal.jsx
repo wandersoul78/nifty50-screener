@@ -106,7 +106,7 @@ export default function StockDetailModal({ stock, onClose }) {
                 🟢 INTRADAY OPEN = LOW BUY TRADE MATRIX
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Open: <span className="mono" style={{ color: '#fff', fontWeight: '700' }}>₹{stock.day_open}</span> | Low: <span className="mono" style={{ color: '#fff', fontWeight: '700' }}>₹{stock.day_low}</span> | Shadow Diff: <span className="mono" style={{ color: 'var(--momentum)', fontWeight: '700' }}>{stock.diff_from_open_pct}%</span> {stock.exact_match && <span style={{ color: 'var(--momentum)', fontWeight: '800' }}>⭐ EXACT</span>}
+                Open: <span className="mono" style={{ color: '#fff', fontWeight: '700' }}>₹{stock.day_open}</span> | Low: <span className="mono" style={{ color: '#fff', fontWeight: '700' }}>₹{stock.day_low}</span> {stock.exact_match && <span style={{ color: 'var(--momentum)', fontWeight: '800', marginLeft: '6px' }}>⭐ EXACT</span>}
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>

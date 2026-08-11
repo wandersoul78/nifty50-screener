@@ -293,7 +293,7 @@ else:
         base_cols = ["ticker", "current_price", "change_pct", "vol_surge",
                      "weekly_supertrend", "sma_50", "sma_100", "sma_200", "ma_distance_pct"]
         extra = ["day_open", "day_low", "entry_price", "stoploss", "target_1", "target_2",
-                 "diff_from_open_pct", "exact_match", "pnl_pct", "momentum_confirmed"] if intraday else []
+                 "exact_match", "pnl_pct", "momentum_confirmed"] if intraday else []
         cols = [c for c in base_cols + extra if c in df.columns]
         df = df[cols].copy()
 
@@ -304,8 +304,7 @@ else:
             "ma_distance_pct": "50 SMA Dist%", "day_open": "Open (₹)", "day_low": "Low (₹)",
             "entry_price": "5m Entry (₹)", "stoploss": "Stoploss (₹)",
             "target_1": "Target 1 (₹)", "target_2": "Target 2 (₹)",
-            "diff_from_open_pct": "Shadow Diff (%)", "exact_match": "Exact",
-            "pnl_pct": "PnL%", "momentum_confirmed": "🔥 Mom"
+            "exact_match": "Exact", "pnl_pct": "PnL%", "momentum_confirmed": "🔥 Mom"
         }
         df.columns = [rename.get(c, c) for c in df.columns]
 
@@ -314,7 +313,7 @@ else:
             if col in df.columns:
                 df[col] = df[col].apply(lambda x: f"₹{float(x):,.2f}" if x is not None and not pd.isna(x) else "—")
 
-        for col in ["Day Chg%", "50 SMA Dist%", "PnL%", "Shadow Diff (%)"]:
+        for col in ["Day Chg%", "50 SMA Dist%", "PnL%"]:
             if col in df.columns:
                 df[col] = df[col].apply(lambda x: f"{float(x):+.2f}%" if x is not None and not pd.isna(x) else "—")
 

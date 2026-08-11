@@ -106,7 +106,6 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
                 {showIntraday && <SortTh field="day_open">Open (₹)</SortTh>}
                 {showIntraday && <SortTh field="day_low">Low (₹)</SortTh>}
                 {showIntraday && <SortTh field="entry_price">Entry (₹)</SortTh>}
-                {showIntraday && <SortTh field="diff_from_open_pct">Shadow%</SortTh>}
                 {showIntraday && <SortTh field="stoploss">Stoploss</SortTh>}
                 {showIntraday && <SortTh field="target_1">Target 1</SortTh>}
                 {showIntraday && <SortTh field="pnl_pct">PnL%</SortTh>}
@@ -145,7 +144,6 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
                     {showIntraday && <td className="mono" style={{ color: 'var(--text-main)' }}>{fmt(s.day_open)}</td>}
                     {showIntraday && <td className="mono" style={{ color: 'var(--text-main)' }}>{fmt(s.day_low)}</td>}
                     {showIntraday && <td className="mono" style={{ color: 'var(--accent-cyan)', fontWeight: '700' }}>{fmt(s.entry_price)}</td>}
-                    {showIntraday && <td className="mono" style={{ color: s.diff_from_open_pct < 0.02 ? 'var(--momentum)' : 'var(--text-muted)', fontSize: '0.8rem' }}>{s.diff_from_open_pct != null ? `${s.diff_from_open_pct}%` : '—'}</td>}
                     {showIntraday && <td className="mono" style={{ color: 'var(--bearish)', fontSize: '0.8rem' }}>{fmt(s.stoploss)}</td>}
                     {showIntraday && <td className="mono" style={{ color: 'var(--bullish)', fontSize: '0.8rem' }}>{fmt(s.target_1)}</td>}
                     {showIntraday && (

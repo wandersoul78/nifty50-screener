@@ -444,13 +444,13 @@ def run_nifty500_scan(tickers=None, tolerance_pct=0.20, st_period=10, st_mult=3)
     print(f"{'='*95}")
     if momentum_setups:
         print(f"\n[🔥] QUALIFIED + BULLISH OPEN=LOW SETUPS:")
-        print(f"  {'Ticker':<12} {'Open (Rs)':<10} {'Low (Rs)':<10} {'5m Entry':<10} {'Shadow%':<10} {'Exact':<8} {'ST Wk':<10} {'SMA50':<10} {'MOM'}")
-        print(f"  {'-'*105}")
+        print(f"  {'Ticker':<12} {'Open (Rs)':<10} {'Low (Rs)':<10} {'5m Entry':<10} {'Exact':<8} {'ST Wk':<10} {'SMA50':<10} {'MOM'}")
+        print(f"  {'-'*95}")
         for s in momentum_setups:
             m = "🔥" if s['momentum_confirmed'] else "  "
             ex = "⭐ EXACT" if s['exact_match'] else "Standard"
             print(f"  {s['ticker']:<12} {(s['day_open'] or 0):<10.2f} {(s['day_low'] or 0):<10.2f} "
-                  f"{(s['entry_price'] or 0):<10.2f} {s['diff_from_open_pct']:<10.3f}% {ex:<8} "
+                  f"{(s['entry_price'] or 0):<10.2f} {ex:<8} "
                   f"{s['weekly_supertrend']:<10.2f} {s['sma_50']:<10.2f} {m}")
     print(f"\n[✅] MA BULL STACK QUALIFIED (NO INTRADAY SETUP)  — Top 20:")
     print(f"  {'Ticker':<12} {'Price':<10} {'Chg%':<8} {'MA Dist%':<10} "
