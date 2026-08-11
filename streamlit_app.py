@@ -239,21 +239,10 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
 # ==============================================================================
 else:
 
-    st.title("🚀 Nifty 500 Supertrend + MA Screener")
-    st.caption("Monthly ST(10,3) ✅  Weekly ST(10,3) ✅  Price > MA(N) ✅  |  Bonus: Open=Low/High Intraday Setup Detection")
+    st.title("🚀 Nifty 500 MA Bull Stack + Weekly ST Screener")
+    st.caption("Weekly ST(10,3) ✅  Price > 50 SMA > 100 SMA > 200 SMA ✅  |  Bonus: Open=Low/High Intraday Setup Detection")
 
     st.sidebar.header("⚙️ Nifty 500 Controls")
-
-    ma_period = st.sidebar.number_input(
-        "MA Period (days)",
-        min_value=5,
-        max_value=500,
-        value=50,
-        step=5,
-        help="Moving Average period. Default=50 (50-day SMA)"
-    )
-
-    ma_type = st.sidebar.radio("MA Type", ["SMA", "EMA"], horizontal=True)
 
     tolerance = st.sidebar.slider(
         "Open Buffer Tolerance (%)",
@@ -268,11 +257,11 @@ else:
         st.cache_data.clear()
 
     @st.cache_data(ttl=300)
-    def get_nifty500_scan(ma_p, ma_t, tol):
-        return run_nifty500_scan(ma_period=ma_p, ma_type=ma_t, tolerance_pct=tol)
+    def get_nifty500_scan(tol):
+        return run_nifty500_scan(tolerance_pct=tol)
 
-    with st.spinner(f"Scanning {len(NIFTY500_STOCKS)} Nifty 500 stocks — Monthly ST + Weekly ST + {ma_type}({ma_period})…"):
-        nifty500_results = get_nifty500_scan(ma_period, ma_type, tolerance)
+    with st.spinner(f"Scanning {len(NIFTY500_STOCKS)} Nifty 500 stocks — Weekly ST(10,3) + MA Bull Stack (Price > 50 > 100 > 200 SMA)…"):
+        nifty500_results = get_nifty500_scan(tolerance)
 
     qualified  = nifty500_results.get("qualified_stocks", [])
     setups     = nifty500_results.get("momentum_setups",  [])
@@ -282,7 +271,7 @@ else:
     with col1:
         st.metric("🔭 Scanned", nifty500_results.get("total_scanned", 0), "Nifty 500 Universe")
     with col2:
-        st.metric("✅ ST Qualified", nifty500_results.get("qualified_count", 0), "Monthly + Weekly + MA")
+        st.metric("✅ Bull Stack Qualified", nifty500_results.get("qualified_count", 0), "Weekly ST + 50>100>200 SMA")
     with col3:
         st.metric("📈 Intraday Setups", nifty500_results.get("momentum_setup_count", 0), "Open=Low or Open=High")
     with col4:
@@ -291,9 +280,9 @@ else:
         st.metric("📅 Last Scan", nifty500_results.get("scan_time", "—")[:16], "")
 
     st.info(
-        f"💡 **Logic:** Stocks must be **above Monthly Supertrend(10,3)** + **above Weekly Supertrend(10,3)** "
-        f"+ **price > {ma_type}({ma_period})**. Qualified stocks are then checked for today's Open=Low / Open=High "
-        f"intraday setup. 🔥 Momentum = 5-min close crosses previous day's High/Low."
+        "💡 **Logic:** Stocks must have **Price > Weekly Supertrend(10,3)** + **Price > 50 SMA > 100 SMA > 200 SMA** "
+        "(MA Bull Stack). Qualified stocks are then checked for today's Open=Low / Open=High intraday setup. "
+        "🔥 Momentum = 5-min close crosses previous day's High/Low."
     )
     st.markdown("---")
 
@@ -302,7 +291,7 @@ else:
             return pd.DataFrame()
         df = pd.DataFrame(stock_list)
         base_cols = ["ticker", "current_price", "change_pct", "vol_surge",
-                     "monthly_supertrend", "weekly_supertrend", "ma_value", "ma_distance_pct"]
+                     "weekly_supertrend", "sma_50", "sma_100", "sma_200", "ma_distance_pct"]
         extra = ["setup_type", "entry_price", "stoploss", "target_1", "target_2",
                  "diff_from_open_pct", "pnl_pct", "momentum_confirmed"] if intraday else []
         cols = [c for c in base_cols + extra if c in df.columns]
@@ -310,32 +299,31 @@ else:
 
         rename = {
             "ticker": "Ticker", "current_price": "Price (₹)", "change_pct": "Day Chg%",
-            "vol_surge": "Vol Surge", "monthly_supertrend": "Monthly ST (₹)",
-            "weekly_supertrend": "Weekly ST (₹)", "ma_value": f"{ma_type}({ma_period}) ₹",
-            "ma_distance_pct": "MA Dist%", "setup_type": "Setup", "entry_price": "Entry (₹)",
+            "vol_surge": "Vol Surge", "weekly_supertrend": "Weekly ST (₹)",
+            "sma_50": "50 SMA (₹)", "sma_100": "100 SMA (₹)", "sma_200": "200 SMA (₹)",
+            "ma_distance_pct": "50 SMA Dist%", "setup_type": "Setup", "entry_price": "Entry (₹)",
             "stoploss": "Stoploss (₹)", "target_1": "Target 1 (₹)", "target_2": "Target 2 (₹)",
             "diff_from_open_pct": "Shadow%", "pnl_pct": "PnL%", "momentum_confirmed": "🔥 Mom"
         }
         df.columns = [rename.get(c, c) for c in df.columns]
 
-        for col in ["Price (₹)", "Monthly ST (₹)", "Weekly ST (₹)",
-                    f"{ma_type}({ma_period}) ₹", "Entry (₹)", "Stoploss (₹)",
-                    "Target 1 (₹)", "Target 2 (₹)"]:
+        for col in ["Price (₹)", "Weekly ST (₹)", "50 SMA (₹)", "100 SMA (₹)", "200 SMA (₹)",
+                    "Entry (₹)", "Stoploss (₹)", "Target 1 (₹)", "Target 2 (₹)"]:
             if col in df.columns:
-                df[col] = df[col].apply(lambda x: f"₹{float(x):,.2f}" if x else "—")
+                df[col] = df[col].apply(lambda x: f"₹{float(x):,.2f}" if x is not None and not pd.isna(x) else "—")
 
-        for col in ["Day Chg%", "MA Dist%", "PnL%", "Shadow%"]:
+        for col in ["Day Chg%", "50 SMA Dist%", "PnL%", "Shadow%"]:
             if col in df.columns:
-                df[col] = df[col].apply(lambda x: f"{float(x):+.2f}%" if x is not None else "—")
+                df[col] = df[col].apply(lambda x: f"{float(x):+.2f}%" if x is not None and not pd.isna(x) else "—")
 
         if "Vol Surge" in df.columns:
-            df["Vol Surge"] = df["Vol Surge"].apply(lambda x: f"{float(x):.2f}x")
+            df["Vol Surge"] = df["Vol Surge"].apply(lambda x: f"{float(x):.2f}x" if x is not None else "—")
         if "🔥 Mom" in df.columns:
             df["🔥 Mom"] = df["🔥 Mom"].apply(lambda x: "🔥 YES" if x else "—")
         return df
 
     tab_all, tab_setup, tab_mom = st.tabs([
-        f"✅ All Qualified ({len(qualified)})",
+        f"✅ Bull Stack Qualified ({len(qualified)})",
         f"📈 Intraday Setups ({len(setups)})",
         f"🔥 Momentum Confirmed ({len(mom_conf)})"
     ])
@@ -348,14 +336,14 @@ else:
 
     with tab_setup:
         if setups:
-            st.info("These stocks passed all 3 Supertrend + MA conditions **AND** show an Open=Low or Open=High intraday setup today.")
+            st.info("These stocks passed Weekly ST + MA Bull Stack (Price > 50 > 100 > 200 SMA) **AND** show an Open=Low or Open=High intraday setup today.")
             st.dataframe(fmt_500(setups, intraday=True), use_container_width=True, height=500)
         else:
             st.warning("No intraday setups on qualified stocks today.")
 
     with tab_mom:
         if mom_conf:
-            st.info("🔥 **Elite picks**: Supertrend bullish + Open=Low setup + 5-min close **above previous day's High** (or below prev Low for OPEN=HIGH). Highest conviction trades.")
+            st.info("🔥 **Elite picks**: Weekly ST + MA Bull Stack + Open=Low setup + 5-min close **above previous day's High** (or below prev Low for OPEN=HIGH). Highest conviction trades.")
             st.dataframe(fmt_500(mom_conf, intraday=True), use_container_width=True, height=500)
         else:
             st.warning("No momentum-confirmed setups yet.")
@@ -365,9 +353,10 @@ else:
         st.download_button(
             "📥 Download Nifty 500 CSV Report",
             csv,
-            f"nifty500_st_screener_{int(time.time())}.csv",
+            f"nifty500_bullstack_screener_{int(time.time())}.csv",
             "text/csv",
             use_container_width=True
         )
 
-    st.caption(f"Last scan: {nifty500_results.get('scan_time', '—')} | Monthly ST(10,3) + Weekly ST(10,3) + {ma_type}({ma_period})")
+    st.caption(f"Last scan: {nifty500_results.get('scan_time', '—')} | Weekly ST(10,3) + MA Bull Stack (Price > 50 > 100 > 200 SMA)")
+

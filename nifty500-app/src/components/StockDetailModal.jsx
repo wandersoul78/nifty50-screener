@@ -1,7 +1,7 @@
 import React from 'react';
-import { X, ArrowUpRight, ArrowDownRight, Zap, Target, Shield, LogIn, TrendingUp, TrendingDown, Activity, CheckCircle } from 'lucide-react';
+import { X, ArrowUpRight, ArrowDownRight, Target, Shield, LogIn, TrendingUp, TrendingDown, Activity, CheckCircle } from 'lucide-react';
 
-export default function StockDetailModal({ stock, onClose, maPeriod, maType }) {
+export default function StockDetailModal({ stock, onClose }) {
   if (!stock) return null;
 
   const isBullish     = stock.setup_type === 'OPEN_LOW';
@@ -9,10 +9,10 @@ export default function StockDetailModal({ stock, onClose, maPeriod, maType }) {
   const price         = stock.current_price || stock.ltp;
   const entryPrice    = stock.entry_price || price;
   const stoplossPrice = stock.stoploss;
-  const pnlPct        = stock.pnl_pct;
-  const monthlySt     = stock.monthly_supertrend;
   const weeklySt      = stock.weekly_supertrend;
-  const maValue       = stock.ma_value;
+  const sma50         = stock.sma_50;
+  const sma100        = stock.sma_100;
+  const sma200        = stock.sma_200;
   const maDist        = stock.ma_distance_pct;
 
   return (
@@ -24,7 +24,7 @@ export default function StockDetailModal({ stock, onClose, maPeriod, maType }) {
     }} onClick={onClose}>
       
       <div className="glass-card" style={{
-        width: '100%', maxWidth: '720px', padding: '28px', position: 'relative',
+        width: '100%', maxWidth: '750px', padding: '28px', position: 'relative',
         border: isMomentum ? '1px solid rgba(245,158,11,0.5)' : '1px solid rgba(129,140,248,0.4)',
         boxShadow: isMomentum ? '0 0 40px rgba(245,158,11,0.18)' : '0 0 40px rgba(129,140,248,0.15)'
       }} onClick={e => e.stopPropagation()}>
@@ -44,7 +44,7 @@ export default function StockDetailModal({ stock, onClose, maPeriod, maType }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <h2 style={{ fontSize: '1.6rem', fontWeight: '800' }}>{stock.ticker}</h2>
             <span className="badge badge-st">
-              <Activity size={13} /> SUPERTREND BULLISH
+              <Activity size={13} /> MA BULL STACK (50&gt;100&gt;200)
             </span>
             {stock.setup_type && (
               <span className={isBullish ? "badge badge-bullish" : "badge badge-bearish"}>
@@ -59,7 +59,7 @@ export default function StockDetailModal({ stock, onClose, maPeriod, maType }) {
             )}
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
-            Nifty 500 Multi-Timeframe Supertrend + {maType}({maPeriod}) Matrix
+            Nifty 500 Weekly Supertrend(10,3) + MA Bull Stack Confluence Matrix
           </p>
         </div>
 
@@ -69,25 +69,31 @@ export default function StockDetailModal({ stock, onClose, maPeriod, maType }) {
           borderRadius: '12px', padding: '16px', marginBottom: '20px'
         }}>
           <div style={{ fontSize: '0.78rem', color: 'var(--accent)', fontWeight: '700', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <CheckCircle size={15} /> MULTI-TIMEFRAME CONFLUENCE CONFIRMED
+            <CheckCircle size={15} /> INSTITUTIONAL MA BULL STACK CONFIRMED (PRICE &gt; 50 SMA &gt; 100 SMA &gt; 200 SMA)
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-            <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '10px 12px', borderRadius: '8px' }}>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>MONTHLY ST (10,3)</span>
-              <span className="mono" style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--bullish)' }}>₹{monthlySt}</span>
-              <span style={{ fontSize: '0.65rem', color: 'var(--bullish)', display: 'block', marginTop: '2px' }}>▲ Price Above</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '10px', borderRadius: '8px' }}>
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block' }}>WEEKLY ST (10,3)</span>
+              <span className="mono" style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--bullish)' }}>₹{weeklySt}</span>
+              <span style={{ fontSize: '0.62rem', color: 'var(--bullish)', display: 'block', marginTop: '2px' }}>▲ Bullish</span>
             </div>
 
-            <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '10px 12px', borderRadius: '8px' }}>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>WEEKLY ST (10,3)</span>
-              <span className="mono" style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--bullish)' }}>₹{weeklySt}</span>
-              <span style={{ fontSize: '0.65rem', color: 'var(--bullish)', display: 'block', marginTop: '2px' }}>▲ Price Above</span>
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '10px', borderRadius: '8px' }}>
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block' }}>50-DAY SMA</span>
+              <span className="mono" style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--accent)' }}>₹{sma50}</span>
+              <span style={{ fontSize: '0.62rem', color: 'var(--accent)', display: 'block', marginTop: '2px' }}>+{maDist}% Dist</span>
             </div>
 
-            <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '10px 12px', borderRadius: '8px' }}>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>{maType}({maPeriod}) FILTER</span>
-              <span className="mono" style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--accent2)' }}>₹{maValue}</span>
-              <span style={{ fontSize: '0.65rem', color: 'var(--accent)', display: 'block', marginTop: '2px' }}>+{maDist}% Distance</span>
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '10px', borderRadius: '8px' }}>
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block' }}>100-DAY SMA</span>
+              <span className="mono" style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--accent2)' }}>₹{sma100}</span>
+              <span style={{ fontSize: '0.62rem', color: 'var(--text-dim)', display: 'block', marginTop: '2px' }}>&lt; 50 SMA</span>
+            </div>
+
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '10px', borderRadius: '8px' }}>
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block' }}>200-DAY SMA</span>
+              <span className="mono" style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-muted)' }}>₹{sma200}</span>
+              <span style={{ fontSize: '0.62rem', color: 'var(--text-dim)', display: 'block', marginTop: '2px' }}>&lt; 100 SMA</span>
             </div>
           </div>
         </div>

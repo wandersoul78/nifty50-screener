@@ -224,25 +224,16 @@ def _get_ohlc(ticker, interval, range_str, session):
     return None
 
 
-def fetch_single_stock_full(ticker, session, ma_period=50, ma_type='SMA',
-                             tolerance_pct=0.20, st_period=10, st_mult=3):
-    """Fetch and analyse one stock. Returns result dict or None if not qualified."""
+def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, st_mult=3):
+    """
+    Fetch and analyse one stock.
+    Filter criteria:
+      1. Weekly Supertrend (10,3) == BULLISH (price > weekly_st)
+      2. Daily MA Bull Stack: Current Price > 50 SMA > 100 SMA > 200 SMA
+      3. Intraday Open=Low / Open=High setup detection (bonus)
+    """
 
-    # ── 1. Monthly Supertrend ────────────────────────────────────────────
-    monthly = _get_ohlc(ticker, '1mo', '5y', session)
-    if not monthly:
-        return None
-    m_c = [float(c) for c in monthly['closes'] if c is not None]
-    m_h = [float(h) for h in monthly['highs']  if h is not None]
-    m_l = [float(l) for l in monthly['lows']   if l is not None]
-    mn  = min(len(m_c), len(m_h), len(m_l))
-    if mn < st_period + 5:
-        return None
-    monthly_st, monthly_dir = compute_supertrend(m_h[:mn], m_l[:mn], m_c[:mn], st_period, st_mult)
-    if monthly_st is None or monthly_dir != 1:
-        return None
-
-    # ── 2. Weekly Supertrend ─────────────────────────────────────────────
+    # ── 1. Weekly Supertrend (10,3) ──────────────────────────────────────────
     weekly = _get_ohlc(ticker, '1wk', '3y', session)
     if not weekly:
         return None
@@ -254,31 +245,39 @@ def fetch_single_stock_full(ticker, session, ma_period=50, ma_type='SMA',
         return None
     weekly_st, weekly_dir = compute_supertrend(w_h[:wn], w_l[:wn], w_c[:wn], st_period, st_mult)
     if weekly_st is None or weekly_dir != 1:
-        return None
+        return None  # Price must be above Weekly Supertrend
 
-    # ── 3. Daily MA ──────────────────────────────────────────────────────
+    # ── 2. Daily MA Bull Stack (Price > 50 SMA > 100 SMA > 200 SMA) ─────────
     daily = _get_ohlc(ticker, '1d', '1y', session)
     if not daily:
         return None
     d_c   = [float(c) for c in daily['closes']  if c is not None]
     d_vol = [v for v in daily['volumes'] if v is not None]
-    if len(d_c) < ma_period:
+    if len(d_c) < 200:
         return None
-    ma_val = compute_ema(d_c, ma_period) if ma_type == 'EMA' else compute_sma(d_c, ma_period)
-    if ma_val is None:
+
+    sma_50  = compute_sma(d_c, 50)
+    sma_100 = compute_sma(d_c, 100)
+    sma_200 = compute_sma(d_c, 200)
+
+    if sma_50 is None or sma_100 is None or sma_200 is None:
         return None
+
     current_price = d_c[-1]
-    if current_price <= ma_val:
+
+    # MA Bull Stack condition: Price > 50 SMA > 100 SMA > 200 SMA
+    ma_stack_qualified = (current_price > sma_50) and (sma_50 > sma_100) and (sma_100 > sma_200)
+    if not ma_stack_qualified:
         return None
 
     prev_close  = d_c[-2] if len(d_c) >= 2 else d_c[-1]
     change_pct  = round((current_price - prev_close) / prev_close * 100, 2)
-    ma_distance = round((current_price - ma_val) / ma_val * 100, 2)
+    ma_distance = round((current_price - sma_50) / sma_50 * 100, 2)
     avg_vol     = sum(d_vol[-20:]) / max(len(d_vol[-20:]), 1)
     day_vol     = d_vol[-1] if d_vol else 0
     vol_surge   = round(day_vol / avg_vol, 2) if avg_vol > 0 else 1.0
 
-    # ── 4. Check for Open=Low / Open=High today (5-min) ─────────────────
+    # ── 3. Check for Open=Low / Open=High today (5-min candle) ──────────────
     fivemin = _get_ohlc(ticker, '5m', '5d', session)
     setup_type         = None
     entry_price        = None
@@ -309,7 +308,6 @@ def fetch_single_stock_full(ticker, session, ma_period=50, ma_type='SMA',
                 day_low   = min(float(fivemin['lows'][i])   for i in t_idx if fivemin['lows'][i])
                 ltp       = float(fivemin['closes'][latest])
 
-                # Previous day high/low for momentum check
                 prev_idx = [i for i in range(len(all_dates))
                             if all_dates[i] < today and fivemin['closes'][i] is not None]
                 if prev_idx:
@@ -348,11 +346,11 @@ def fetch_single_stock_full(ticker, session, ma_period=50, ma_type='SMA',
                         if prev_day_low:
                             momentum_confirmed = entry_5m < prev_day_low
 
-    signal = ("ST_BULLISH + OPEN=LOW 🔥" if setup_type == 'OPEN_LOW' and momentum_confirmed
-              else "ST_BULLISH + OPEN=LOW" if setup_type == 'OPEN_LOW'
-              else "ST_BULLISH + OPEN=HIGH 🔥" if setup_type == 'OPEN_HIGH' and momentum_confirmed
-              else "ST_BULLISH + OPEN=HIGH" if setup_type == 'OPEN_HIGH'
-              else "ST_BULLISH")
+    signal = ("BULL STACK + OPEN=LOW 🔥" if setup_type == 'OPEN_LOW' and momentum_confirmed
+              else "BULL STACK + OPEN=LOW" if setup_type == 'OPEN_LOW'
+              else "BULL STACK + OPEN=HIGH 🔥" if setup_type == 'OPEN_HIGH' and momentum_confirmed
+              else "BULL STACK + OPEN=HIGH" if setup_type == 'OPEN_HIGH'
+              else "MA BULL STACK")
 
     return {
         "ticker":              ticker,
@@ -361,13 +359,13 @@ def fetch_single_stock_full(ticker, session, ma_period=50, ma_type='SMA',
         "change_pct":          change_pct,
         "volume":              day_vol,
         "vol_surge":           vol_surge,
-        "monthly_supertrend":  monthly_st,
         "weekly_supertrend":   weekly_st,
-        "ma_value":            ma_val,
+        "sma_50":              sma_50,
+        "sma_100":             sma_100,
+        "sma_200":             sma_200,
         "ma_distance_pct":     ma_distance,
-        "above_monthly_st":    True,
         "above_weekly_st":     True,
-        "above_ma":            True,
+        "ma_stack_aligned":    True,
         "setup_type":          setup_type,
         "entry_price":         entry_price,
         "stoploss":            stoploss,
@@ -383,14 +381,13 @@ def fetch_single_stock_full(ticker, session, ma_period=50, ma_type='SMA',
 
 
 # ─── Parallel Scan ────────────────────────────────────────────────────────────
-def run_nifty500_scan(tickers=None, ma_period=50, ma_type='SMA',
-                      tolerance_pct=0.20, st_period=10, st_mult=3):
+def run_nifty500_scan(tickers=None, tolerance_pct=0.20, st_period=10, st_mult=3):
     if tickers is None:
         tickers = NIFTY500_STOCKS
     tickers = list(dict.fromkeys(tickers))
 
     print(f"[*] Scanning {len(tickers)} Nifty 500 stocks | "
-          f"Monthly ST({st_period},{st_mult}) + Weekly ST({st_period},{st_mult}) + {ma_type}({ma_period})")
+          f"Weekly ST({st_period},{st_mult}) + MA Bull Stack (Price > 50 SMA > 100 SMA > 200 SMA)...")
 
     session = requests.Session()
     session.headers.update({'User-Agent': (
@@ -403,8 +400,7 @@ def run_nifty500_scan(tickers=None, ma_period=50, ma_type='SMA',
     with ThreadPoolExecutor(max_workers=15) as executor:
         futures = {
             executor.submit(fetch_single_stock_full, t, session,
-                            ma_period, ma_type, tolerance_pct,
-                            st_period, st_mult): t
+                            tolerance_pct, st_period, st_mult): t
             for t in tickers
         }
         for future in as_completed(futures):
@@ -427,8 +423,6 @@ def run_nifty500_scan(tickers=None, ma_period=50, ma_type='SMA',
     results = {
         "scan_time":                scan_time,
         "total_scanned":            len(tickers),
-        "ma_period":                ma_period,
-        "ma_type":                  ma_type,
         "st_period":                st_period,
         "st_multiplier":            st_mult,
         "qualified_count":          len(qualified),
@@ -454,41 +448,33 @@ def run_nifty500_scan(tickers=None, ma_period=50, ma_type='SMA',
 
     # CLI summary
     print(f"\n{'='*95}")
-    print(f"  NIFTY 500 SCREENER | {scan_time}")
-    print(f"  Conditions: Monthly ST({st_period},{st_mult}) + Weekly ST({st_period},{st_mult}) + {ma_type}({ma_period})")
+    print(f"  NIFTY 500 MA BULL STACK SCREENER | {scan_time}")
+    print(f"  Conditions: Weekly ST({st_period},{st_mult}) + Price > 50 SMA > 100 SMA > 200 SMA")
     print(f"  Qualified: {len(qualified)} | With Intraday Setup: {len(momentum_setups)}")
     print(f"{'='*95}")
     if momentum_setups:
-        print(f"\n[🔥] ST-QUALIFIED + INTRADAY SETUP:")
+        print(f"\n[🔥] QUALIFIED + INTRADAY SETUP:")
         print(f"  {'Ticker':<12} {'Setup':<12} {'Price':<10} {'Entry':<10} "
-              f"{'ST Mo':<10} {'ST Wk':<10} {'SMA':<10} {'MOM'}")
-        print(f"  {'-'*88}")
+              f"{'ST Wk':<10} {'SMA50':<10} {'SMA100':<10} {'SMA200':<10} {'MOM'}")
+        print(f"  {'-'*95}")
         for s in momentum_setups:
             m = "🔥" if s['momentum_confirmed'] else "  "
             print(f"  {s['ticker']:<12} {(s['setup_type'] or ''):<12} "
                   f"{s['current_price']:<10.2f} {(s['entry_price'] or 0):<10.2f} "
-                  f"{s['monthly_supertrend']:<10.2f} {s['weekly_supertrend']:<10.2f} "
-                  f"{s['ma_value']:<10.2f} {m}")
-    print(f"\n[✅] ST QUALIFIED (NO INTRADAY SETUP)  — Top 20:")
+                  f"{s['weekly_supertrend']:<10.2f} {s['sma_50']:<10.2f} "
+                  f"{s['sma_100']:<10.2f} {s['sma_200']:<10.2f} {m}")
+    print(f"\n[✅] MA BULL STACK QUALIFIED (NO INTRADAY SETUP)  — Top 20:")
     print(f"  {'Ticker':<12} {'Price':<10} {'Chg%':<8} {'MA Dist%':<10} "
-          f"{'ST Monthly':<12} {'ST Weekly':<12} {'MA Value':<10}")
-    print(f"  {'-'*88}")
+          f"{'ST Weekly':<12} {'SMA50':<10} {'SMA100':<10} {'SMA200':<10}")
+    print(f"  {'-'*95}")
     for s in pure_st[:20]:
         print(f"  {s['ticker']:<12} {s['current_price']:<10.2f} {s['change_pct']:<+8.2f} "
-              f"{s['ma_distance_pct']:<10.2f} {s['monthly_supertrend']:<12.2f} "
-              f"{s['weekly_supertrend']:<12.2f} {s['ma_value']:<10.2f}")
+              f"{s['ma_distance_pct']:<10.2f} {s['weekly_supertrend']:<12.2f} "
+              f"{s['sma_50']:<10.2f} {s['sma_100']:<10.2f} {s['sma_200']:<10.2f}")
     print(f"{'='*95}\n")
     return results
 
 
 if __name__ == "__main__":
-    ma_period = 50
-    ma_type   = 'SMA'
-    if len(sys.argv) > 1:
-        try:
-            ma_period = int(sys.argv[1])
-        except ValueError:
-            pass
-    if len(sys.argv) > 2:
-        ma_type = sys.argv[2].upper()
-    run_nifty500_scan(ma_period=ma_period, ma_type=ma_type)
+    run_nifty500_scan()
+

@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowUpDown, ArrowUpRight, ArrowDownRight, Search, TrendingUp, TrendingDown, Zap } from 'lucide-react';
+import { ArrowUpDown, ArrowUpRight, ArrowDownRight, Search, TrendingUp, TrendingDown } from 'lucide-react';
 
 const fmt = (v, decimals = 2) => v != null ? `₹${Number(v).toLocaleString('en-IN', { minimumFractionDigits: decimals })}` : '—';
 const fmtPct = v => v != null ? `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(2)}%` : '—';
 
 export default function StockTable({ stocks, activeTab, setActiveTab,
-                                     allCount, setupCount, momCount, maPeriod, maType,
+                                     allCount, setupCount, momCount,
                                      onSelectStock }) {
   const [search, setSearch]   = useState('');
   const [sortField, setSort]  = useState('ma_distance_pct');
@@ -46,7 +46,7 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
         <div className="tab-nav">
           <button className={`tab-pill ${activeTab === 'ALL' ? 'active-all' : ''}`}
             onClick={() => setActiveTab('ALL')}>
-            ✅ All Qualified ({allCount})
+            ✅ Bull Stack Qualified ({allCount})
           </button>
           <button className={`tab-pill ${activeTab === 'SETUP' ? 'active-setup' : ''}`}
             onClick={() => setActiveTab('SETUP')}>
@@ -71,17 +71,17 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
       {/* Info banners */}
       {activeTab === 'ALL' && (
         <div style={{ background: 'rgba(129,140,248,0.08)', border: '1px solid rgba(129,140,248,0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-          ✅ All stocks passing <strong style={{color:'var(--accent)'}}>Monthly ST(10,3)</strong> + <strong style={{color:'var(--accent)'}}>Weekly ST(10,3)</strong> + <strong style={{color:'var(--accent)'}}>Price &gt; {maType}({maPeriod})</strong> — sorted by MA distance % (highest first).
+          ✅ Stocks meeting <strong style={{color:'var(--accent)'}}>Weekly ST(10,3) == BULLISH</strong> + <strong style={{color:'var(--accent)'}}>Price &gt; 50 SMA &gt; 100 SMA &gt; 200 SMA</strong> (Institutional Bull Stack).
         </div>
       )}
       {activeTab === 'SETUP' && (
         <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-          📈 Supertrend-qualified stocks with an <strong style={{color:'var(--bullish)'}}>Open=Low (BUY)</strong> or <strong style={{color:'var(--bearish)'}}>Open=High (SELL)</strong> intraday setup today.
+          📈 Bull Stack qualified stocks that also show an <strong style={{color:'var(--bullish)'}}>Open=Low (BUY)</strong> or <strong style={{color:'var(--bearish)'}}>Open=High (SELL)</strong> intraday setup today.
         </div>
       )}
       {activeTab === 'MOMENTUM' && (
         <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-          🔥 <strong style={{color:'var(--momentum)'}}>Elite picks</strong>: ST bullish + Open=Low + <strong>5-min close above previous day's High</strong>. Highest conviction momentum trades.
+          🔥 <strong style={{color:'var(--momentum)'}}>Elite picks</strong>: MA Bull Stack + Weekly ST + Open=Low setup + <strong>5-min close above previous day's High</strong>.
         </div>
       )}
 
@@ -97,10 +97,11 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
                 <SortTh field="ticker">Ticker</SortTh>
                 <SortTh field="current_price">Price (₹)</SortTh>
                 <SortTh field="change_pct">Day Chg%</SortTh>
-                <SortTh field="monthly_supertrend">Monthly ST</SortTh>
                 <SortTh field="weekly_supertrend">Weekly ST</SortTh>
-                <SortTh field="ma_value">{maType}({maPeriod})</SortTh>
-                <SortTh field="ma_distance_pct">MA Dist%</SortTh>
+                <SortTh field="sma_50">50 SMA</SortTh>
+                <SortTh field="sma_100">100 SMA</SortTh>
+                <SortTh field="sma_200">200 SMA</SortTh>
+                <SortTh field="ma_distance_pct">50 SMA Dist%</SortTh>
                 <SortTh field="vol_surge">Vol Surge</SortTh>
                 {showIntraday && <SortTh field="setup_type">Setup</SortTh>}
                 {showIntraday && <SortTh field="entry_price">Entry (₹)</SortTh>}
@@ -135,9 +136,10 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
                       {s.change_pct >= 0 ? <TrendingUp size={13} style={{display:'inline',marginRight:'3px'}} /> : <TrendingDown size={13} style={{display:'inline',marginRight:'3px'}} />}
                       {fmtPct(s.change_pct)}
                     </td>
-                    <td className="mono" style={{ color: 'var(--bullish)', fontSize: '0.8rem' }}>{fmt(s.monthly_supertrend)}</td>
                     <td className="mono" style={{ color: 'var(--bullish)', fontSize: '0.8rem' }}>{fmt(s.weekly_supertrend)}</td>
-                    <td className="mono" style={{ color: 'var(--accent2)', fontSize: '0.8rem' }}>{fmt(s.ma_value)}</td>
+                    <td className="mono" style={{ color: 'var(--accent)', fontSize: '0.8rem' }}>{fmt(s.sma_50)}</td>
+                    <td className="mono" style={{ color: 'var(--accent2)', fontSize: '0.8rem' }}>{fmt(s.sma_100)}</td>
+                    <td className="mono" style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{fmt(s.sma_200)}</td>
                     <td className="mono" style={{ color: s.ma_distance_pct > 5 ? 'var(--bullish)' : 'var(--accent)', fontWeight: '700' }}>
                       +{Number(s.ma_distance_pct).toFixed(2)}%
                     </td>

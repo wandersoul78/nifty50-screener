@@ -2,13 +2,10 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import StockTable from './components/StockTable';
 import StockDetailModal from './components/StockDetailModal';
-import { Activity, Zap, CheckCircle, Flame, BarChart2 } from 'lucide-react';
 
 export default function App() {
   const [screenerData, setScreenerData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [maPeriod, setMaPeriod] = useState(50);
-  const [maType, setMaType] = useState('SMA');
   const [tolerance, setTolerance] = useState(0.20);
   const [selectedStock, setSelectedStock] = useState(null);
   const [activeTab, setActiveTab] = useState('ALL'); // ALL, SETUP, MOMENTUM
@@ -56,15 +53,15 @@ export default function App() {
     if (!displayedStocks.length) return;
     
     const headers = [
-      "Ticker", "Price", "DayChg%", "MonthlyST", "WeeklyST",
-      "MAValue", "MADist%", "VolSurge", "Setup", "EntryPrice",
+      "Ticker", "Price", "DayChg%", "WeeklyST", "SMA50", "SMA100", "SMA200",
+      "50SMADist%", "VolSurge", "Setup", "EntryPrice",
       "Stoploss", "Target1", "Target2", "PnL%", "MomentumConfirmed"
     ];
     const csvRows = [
       headers.join(","),
       ...displayedStocks.map(s => [
         s.ticker, s.current_price, s.change_pct,
-        s.monthly_supertrend, s.weekly_supertrend, s.ma_value,
+        s.weekly_supertrend, s.sma_50, s.sma_100, s.sma_200,
         s.ma_distance_pct, s.vol_surge, s.setup_type || "",
         s.entry_price || "", s.stoploss || "", s.target_1 || "",
         s.target_2 || "", s.pnl_pct || "", s.momentum_confirmed || false
@@ -75,7 +72,7 @@ export default function App() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `nifty500_st_screener_${Date.now()}.csv`;
+    a.download = `nifty500_bullstack_screener_${Date.now()}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -89,10 +86,6 @@ export default function App() {
         onRefresh={handleRunScanner}
         isRefreshing={loading}
         onExportCSV={handleExportCSV}
-        maPeriod={maPeriod}
-        setMaPeriod={setMaPeriod}
-        maType={maType}
-        setMaType={setMaType}
         tolerance={tolerance}
         setTolerance={setTolerance}
       />
@@ -121,11 +114,11 @@ export default function App() {
           </div>
 
           <div className="glass-card kpi-card" style={{ borderLeft: '4px solid var(--accent)' }}>
-            <div className="kpi-title">ST + MA Qualified</div>
+            <div className="kpi-title">MA Bull Stack Qualified</div>
             <div className="kpi-value mono" style={{ color: 'var(--accent)' }}>
               {screenerData?.qualified_count || qualifiedStocks.length}
             </div>
-            <div className="kpi-subtitle" style={{ color: 'var(--accent)' }}>Monthly ST + Wk ST + MA</div>
+            <div className="kpi-subtitle" style={{ color: 'var(--accent)' }}>Wk ST + Price &gt; 50 &gt; 100 &gt; 200</div>
           </div>
 
           <div className="glass-card kpi-card" style={{ borderLeft: '4px solid var(--bullish)' }}>
@@ -145,11 +138,11 @@ export default function App() {
           </div>
 
           <div className="glass-card kpi-card">
-            <div className="kpi-title">Filter Config</div>
-            <div className="kpi-value mono" style={{ color: 'var(--accent2)', fontSize: '1.2rem' }}>
-              {maType}({maPeriod})
+            <div className="kpi-title">Strategy Engine</div>
+            <div className="kpi-value mono" style={{ color: 'var(--accent2)', fontSize: '1.05rem' }}>
+              ST(Wk) + 50/100/200
             </div>
-            <div className="kpi-subtitle">Supertrend (10, 3)</div>
+            <div className="kpi-subtitle">Daily MA Bull Stack</div>
           </div>
         </div>
       )}
@@ -162,8 +155,6 @@ export default function App() {
         allCount={qualifiedStocks.length}
         setupCount={momentumSetups.length}
         momCount={momentumConfirmed.length}
-        maPeriod={maPeriod}
-        maType={maType}
         onSelectStock={setSelectedStock}
       />
 
@@ -172,8 +163,6 @@ export default function App() {
         <StockDetailModal 
           stock={selectedStock}
           onClose={() => setSelectedStock(null)}
-          maPeriod={maPeriod}
-          maType={maType}
         />
       )}
 
