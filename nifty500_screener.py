@@ -277,7 +277,12 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
     day_vol     = d_vol[-1] if d_vol else 0
     vol_surge   = round(day_vol / avg_vol, 2) if avg_vol > 0 else 1.0
 
-    # ── 3. Check for Open=Low / Open=High today (5-min candle) ──────────────
+    d_opens = [float(o) for o in daily['opens'] if o is not None]
+    d_lows  = [float(l) for l in daily['lows']  if l is not None]
+    official_open = d_opens[-1] if d_opens else None
+    official_low  = d_lows[-1]  if d_lows  else None
+
+    # ── 3. Check for Open=Low today (using Official Daily Open & Low) ──────
     fivemin = _get_ohlc(ticker, '5m', '5d', session)
     setup_type         = None
     entry_price        = None
@@ -287,10 +292,10 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
     diff_from_open_pct = None
     pnl_pct            = None
     momentum_confirmed = False
-    day_open_val = None
-    day_low_val  = None
+    day_open_val       = round(official_open, 2) if official_open else None
+    day_low_val        = round(official_low, 2)  if official_low  else None
 
-    if fivemin:
+    if fivemin and official_open and official_low and official_open > 0:
         all_dates = fivemin['dates']
         if all_dates:
             today = max(all_dates)
@@ -301,13 +306,8 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
             if t_idx:
                 first   = t_idx[0]
                 latest  = t_idx[-1]
-                day_open = float(fivemin['opens'][first])
                 entry_5m = float(fivemin['closes'][first])
-                day_high  = max(float(fivemin['highs'][i])  for i in t_idx if fivemin['highs'][i])
-                day_low   = min(float(fivemin['lows'][i])   for i in t_idx if fivemin['lows'][i])
-                ltp       = float(fivemin['closes'][latest])
-                day_open_val = round(day_open, 2)
-                day_low_val  = round(day_low, 2)
+                ltp      = float(fivemin['closes'][latest])
 
                 prev_idx = [i for i in range(len(all_dates))
                             if all_dates[i] < today and fivemin['closes'][i] is not None]
@@ -317,21 +317,21 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
                     prev_day_high = max(float(fivemin['highs'][i]) for i in pd_idx if fivemin['highs'][i])
                     prev_day_low  = min(float(fivemin['lows'][i])  for i in pd_idx if fivemin['lows'][i])
 
-                if day_open > 0:
-                    ol_diff = abs(day_open - day_low) / day_open * 100
+                # Official Open=Low difference check (matches Zerodha / TradingView 100%)
+                ol_diff = abs(official_open - official_low) / official_open * 100
 
-                    if ol_diff <= tolerance_pct:
-                        setup_type         = 'OPEN_LOW'
-                        diff_from_open_pct = round(ol_diff, 3)
-                        risk_amt    = max(round(entry_5m - day_low * 0.997, 2),
-                                         round(entry_5m * 0.005, 2))
-                        stoploss    = round(day_low * 0.997, 2)
-                        target_1    = round(entry_5m + risk_amt * 1.5, 2)
-                        target_2    = round(entry_5m + risk_amt * 2.5, 2)
-                        entry_price = round(entry_5m, 2)
-                        pnl_pct     = round((ltp - entry_5m) / entry_5m * 100, 2)
-                        if prev_day_high:
-                            momentum_confirmed = entry_5m > prev_day_high
+                if ol_diff <= tolerance_pct:
+                    setup_type         = 'OPEN_LOW'
+                    diff_from_open_pct = round(ol_diff, 3)
+                    risk_amt    = max(round(entry_5m - official_low * 0.997, 2),
+                                     round(entry_5m * 0.005, 2))
+                    stoploss    = round(official_low * 0.997, 2)
+                    target_1    = round(entry_5m + risk_amt * 1.5, 2)
+                    target_2    = round(entry_5m + risk_amt * 2.5, 2)
+                    entry_price = round(entry_5m, 2)
+                    pnl_pct     = round((ltp - entry_5m) / entry_5m * 100, 2)
+                    if prev_day_high:
+                        momentum_confirmed = entry_5m > prev_day_high
 
     signal = ("BULL STACK + OPEN=LOW 🔥" if setup_type == 'OPEN_LOW' and momentum_confirmed
               else "BULL STACK + OPEN=LOW" if setup_type == 'OPEN_LOW'
