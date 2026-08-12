@@ -130,6 +130,9 @@ export default function StockTable({ stocks, onSelectStock }) {
               <th onClick={() => handleSort('ltp')} style={{ cursor: 'pointer' }}>
                 Current LTP (₹) <ArrowUpDown size={12} />
               </th>
+              <th onClick={() => handleSort('change_pct')} style={{ cursor: 'pointer', color: sortField === 'change_pct' ? 'var(--accent-cyan)' : undefined }}>
+                Day Chg% <ArrowUpDown size={12} style={{ opacity: sortField === 'change_pct' ? 1 : 0.4 }} />
+              </th>
               <th onClick={() => handleSort('pnl_pct')} style={{ cursor: 'pointer' }}>
                 Trade PnL % <ArrowUpDown size={12} />
               </th>
@@ -144,7 +147,7 @@ export default function StockTable({ stocks, onSelectStock }) {
           <tbody>
             {sortedStocks.length === 0 ? (
               <tr>
-                <td colSpan={activeFilter === 'MOMENTUM' ? 10 : 8} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
+                <td colSpan={activeFilter === 'MOMENTUM' ? 11 : 9} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
                   {activeFilter === 'MOMENTUM'
                     ? 'No momentum-confirmed stocks yet. Momentum requires 5-min close to cross the previous day\'s High/Low.'
                     : 'No matching Open=Low or Open=High stocks found. Try adjusting tolerance or filters.'}
@@ -215,6 +218,15 @@ export default function StockTable({ stocks, onSelectStock }) {
 
                     <td className="mono" style={{ fontWeight: '700' }}>
                       ₹{ltpPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+
+                    <td>
+                      <span className="mono" style={{
+                        fontWeight: '700',
+                        color: (stock.change_pct ?? 0) >= 0 ? 'var(--bullish)' : 'var(--bearish)',
+                      }}>
+                        {(stock.change_pct ?? 0) >= 0 ? '+' : ''}{(stock.change_pct ?? 0).toFixed(2)}%
+                      </span>
                     </td>
 
                     <td>
