@@ -266,7 +266,7 @@ else:
     def get_nifty500_scan(tol):
         return run_nifty500_scan(tolerance_pct=tol)
 
-    with st.spinner(f"Scanning {len(NIFTY500_STOCKS)} Nifty 500 stocks — Weekly ST(10,3) + MA Bull Stack (Price > 50 > 100 > 200 SMA)…"):
+    with st.spinner(f"Scanning {len(get_nifty500_universe_cached())} Nifty 500 stocks — Weekly ST(10,3) + MA Bull Stack (Price > 50 > 100 > 200 SMA)…"):
         nifty500_results = get_nifty500_scan(tolerance)
 
     qualified  = sorted(nifty500_results.get("qualified_stocks", []), key=lambda s: s.get("change_pct", 0), reverse=True)
