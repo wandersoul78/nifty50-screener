@@ -3,7 +3,7 @@ Nifty F&O Pure Stock Screener - Open = Low & Open = High
 ========================================================================
 Features:
 1. Pure Yahoo Finance 5-Minute Post-Open Entry Price Engine (09:20 AM IST)
-2. 215+ Nifty F&O & High-Volume Momentum Stock Universe
+2. Complete F&O Universe: Nifty100 + Nifty Midcap150 (250 stocks, dynamically fetched)
 3. Intraday Open=Low (Bullish) & Open=High (Bearish) Setup Analytics
 """
 
@@ -19,36 +19,81 @@ import requests
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding='utf-8')
 
-# 215+ Complete Nifty F&O & High-Volume Momentum Stock Universe
-NIFTY_FO_STOCKS = [
-    "KAYNES", "HYUNDAI", "PAYTM", "PGEL", "GMRAIRPORT", "KFINTECH", "IRFC",
-    "HDFCBANK", "ICICIBANK", "SBIN", "AXISBANK", "KOTAKBANK", "INDUSINDBK", "BANKBARODA",
-    "CANBK", "PNB", "FEDERALBNK", "AUBANK", "BANDHANBNK", "IDFCFIRSTB", "BAJFINANCE",
-    "BAJAJFINSV", "CHOLAFIN", "SHRIRAMFIN", "MUTHOOTFIN", "RECLTD", "PFC", "ICICIPRULI",
-    "SBILIFE", "HDFCLIFE", "LICHSGFIN", "HDFCAMC", "BSE", "MCX", "MANAPPURAM", "YESBANK",
-    "JIOFIN", "MOTILALOFS", "MFSL", "SBICARD", "RBLBANK", "TCS", "INFY", "HCLTECH", "WIPRO",
-    "TECHM", "PERSISTENT", "COFORGE", "MPHASIS", "LTTS", "TATAELXSI", "NAUKRI", "OFSS",
-    "MARUTI", "M&M", "HEROMOTOCO", "EICHERMOT", "TVSMOTOR", "BOSCHLTD", "BHARATFORG",
-    "MOTHERSON", "BALKRISIND", "MRF", "ASHOKLEY", "ESCORTS", "BAJAJ-AUTO", "APOLLOTYRE",
-    "RELIANCE", "NTPC", "ONGC", "POWERGRID", "COALINDIA", "GAIL", "BPCL", "IOC",
-    "HINDPETRO", "TATAPOWER", "JSWENERGY", "NHPC", "PETRONET", "OIL", "ADANIGREEN", "ADANIPOWER",
-    "ATGL", "IGL", "MGL", "GUJGASLTD", "TATASTEEL", "JSWSTEEL", "HINDALCO", "JINDALSTEL", "VEDL",
-    "NMDC", "NATIONALUM", "SAIL", "APLAPOLLO", "ITC", "HINDUNILVR", "NESTLEIND", "BRITANNIA",
-    "TATACONSUM", "VBL", "DABUR", "GODREJCP", "COLPAL", "MARICO", "UNITDSPR", "BERGEPAINT",
-    "PIDILITIND", "BALRAMCHIN", "UBL", "SUNPHARMA", "DRREDDY", "CIPLA", "DIVISLAB", "LUPIN",
-    "AUROPHARMA", "TORNTPHARM", "ALKEM", "BIOCON", "GLENMARK", "APOLLOHOSP", "GRANULES",
-    "SYNGENE", "IPCALAB", "METROPOLIS", "LALPATHLAB", "MAXHEALTH", "NAVINFLUOR", "LT", "BEL",
-    "HAL", "SIEMENS", "ABB", "BHEL", "CGPOWER", "HAVELLS", "POLYCAB", "VOLTAS", "DIXON",
-    "ASTRAL", "CUMMINSIND", "TIINDIA", "RVNL", "MAZDOCK", "CONCOR", "IRCTC", "CROMPTON",
-    "ULTRACEMCO", "GRASIM", "DLF", "AMBUJACEM", "ACC", "DALBHARAT", "GODREJPROP",
-    "PHOENIXLTD", "OBEROIRALTY", "SHREECEM", "RAMCOCEM", "BHARTIARTL", "IDEA", "INDUSTOWER",
-    "SRF", "DEEPAKNTR", "UPL", "CHAMBLFERT", "ATUL", "PIIND", "AARTIIND", "ADANIENT",
-    "ADANIPORTS", "TRENT", "TITAN", "ASIANPAINT", "INDIGO", "JUBLFOOD", "BATAINDIA",
-    "PAGEIND", "ZOMATO", "SUZLON", "NYKAA", "KALYANKJIL", "PVRINOX", "SUNTV", "ZEEL",
-    "ABFRL", "EXIDEIND", "SWIGGY", "PRESTIGE", "BSOFT", "KEI", "POLICYBZR", "TATATECH",
-    "HUDCO", "NBCC", "SJVN", "CENTRALBK", "PATANJALI", "AWL", "DMART", "SOLARINDS",
-    "HFCL", "JYOTICNC", "AETHER"
+# ─── Complete F&O Universe: Nifty100 + Nifty Midcap150 ───────────────────────
+# Fallback list (kept in sync with official NSE indices: Nifty100 + Midcap150)
+# Correct tickers: ETERNAL (not ZOMATO), OBEROIRLTY (not OBEROIRALTY)
+_NIFTY_FO_FALLBACK = [
+    # Nifty 100 (Large Cap)
+    "360ONE", "ABB", "ADANIENSOL", "ADANIENT", "ADANIGREEN", "ADANIPORTS", "ADANIPOWER",
+    "AMBUJACEM", "APOLLOHOSP", "ASIANPAINT", "ATGL", "AUBANK", "AWL", "AXISBANK",
+    "BAJAJ-AUTO", "BAJAJFINSV", "BAJAJHLDNG", "BAJFINANCE", "BANKBARODA", "BEL",
+    "BHARTIARTL", "BPCL", "BRITANNIA", "CANBK", "CGPOWER", "CIPLA", "COALINDIA",
+    "COFORGE", "COLPAL", "DABUR", "DALBHARAT", "DIVISLAB", "DIXON", "DLF", "DMART",
+    "DRREDDY", "EICHERMOT", "ETERNAL", "FEDERALBNK", "GAIL", "GODREJCP", "GODREJPROP",
+    "GRASIM", "HAL", "HAVELLS", "HCLTECH", "HDFCAMC", "HDFCBANK", "HDFCLIFE",
+    "HEROMOTOCO", "HINDALCO", "HINDPETRO", "HINDUNILVR", "HUDCO", "HYUNDAI",
+    "ICICIBANK", "ICICIPRULI", "IDEA", "IDFCFIRSTB", "INDIGO", "INDUSINDBK",
+    "INDUSTOWER", "INFY", "IOC", "IRCTC", "IRFC", "ITC", "JINDALSTEL", "JIOFIN",
+    "JSWENERGY", "JSWSTEEL", "JUBLFOOD", "KALYANKJIL", "KOTAKBANK", "LT", "LUPIN",
+    "M&M", "MARICO", "MARUTI", "MAXHEALTH", "MCX", "MFSL", "MOTHERSON", "MOTILALOFS",
+    "MPHASIS", "MRF", "MUTHOOTFIN", "NAUKRI", "NESTLEIND", "NHPC", "NMDC", "NTPC",
+    "NYKAA", "OBEROIRLTY", "OFSS", "OIL", "ONGC", "PAGEIND", "PATANJALI", "PAYTM",
+    "PERSISTENT", "PETRONET", "PFC", "PHOENIXLTD", "PIDILITIND", "PIIND", "PNB",
+    "POLICYBZR", "POLYCAB", "POWERGRID", "PRESTIGE", "RECLTD", "RELIANCE", "RVNL",
+    "SBICARD", "SBILIFE", "SBIN", "SHREECEM", "SHRIRAMFIN", "SIEMENS", "SJVN",
+    "SOLARINDS", "SRF", "SUNPHARMA", "SUZLON", "SWIGGY", "TATACONSUM", "TATAELXSI",
+    "TATAPOWER", "TATASTEEL", "TCS", "TECHM", "TIINDIA", "TITAN", "TORNTPHARM",
+    "TRENT", "TVSMOTOR", "UBL", "ULTRACEMCO", "UNITDSPR", "UPL", "VBL", "VEDL",
+    "VOLTAS", "WIPRO", "YESBANK", "ZYDUSLIFE",
+    # Nifty Midcap 150
+    "3MINDIA", "ABBOTINDIA", "ABCAPITAL", "ACC", "AIAENG", "AIIL", "AJANTPHARM",
+    "ALKEM", "ANTHEM", "APARINDS", "APLAPOLLO", "APOLLOTYRE", "ASHOKLEY", "ASTRAL",
+    "AUROPHARMA", "BAJAJHFL", "BALKRISIND", "BANKINDIA", "BDL", "BERGEPAINT",
+    "BHARATFORG", "BHARTIHEXA", "BHEL", "BIOCON", "BLUESTARCO", "BSE", "COCHINSHIP",
+    "COROMANDEL", "CRISIL", "ENDURANCE", "ENRIN", "ESCORTS", "EXIDEIND", "FLUOROCHEM",
+    "FORTIS", "GICRE", "GLAXO", "GLENMARK", "GMRAIRPORT", "GODFRYPHLP", "GODREJIND",
+    "GROWW", "GVT&D", "HDBFS", "HEXT", "HONAUT", "ICICIAMC", "ICICIGI",
+    "INDIANB", "IPCALAB", "IREDA", "ITCHOTELS", "JKCEMENT", "JSL", "JSWINFRA",
+    "KEI", "KPITTECH", "KPRMILL", "LAURUSLABS", "LENSKART", "LGEINDIA", "LICHSGFIN",
+    "LICI", "LINDEINDIA", "LLOYDSME", "LTF", "LTM", "LTTS", "M&MFIN", "MAHABANK",
+    "MANKIND", "MEDANTA", "NAM-INDIA", "NATIONALUM", "NIACL", "NLCINDIA",
+    "NTPCGREEN", "PAGEIND", "PREMIERENE", "RADICO", "SAIL", "SCHAEFFLER",
+    "SUNDARMFIN", "SUPREMEIND", "SWIGGY", "TATACOMM", "TATAINVEST", "THERMAX",
+    "TITAGARH", "TMCV", "TMPV", "TORNTPOWER", "UNOMINDA", "VMM", "WAAREEENER",
+    "TATACAP",
 ]
+
+def _fetch_nse_index_symbols(index_csv_url, session):
+    """Fetch stock symbols from a niftyindices.com CSV URL."""
+    try:
+        r = session.get(index_csv_url, timeout=10)
+        if r.status_code == 200:
+            import io
+            df = pd.read_csv(io.StringIO(r.text))
+            return df['Symbol'].tolist()
+    except Exception:
+        pass
+    return []
+
+def get_fno_universe():
+    """
+    Dynamically fetches the F&O universe from NSE (Nifty100 + Midcap150).
+    Falls back to the hardcoded list if the fetch fails.
+    """
+    session = requests.Session()
+    session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+    base = 'https://niftyindices.com/IndexConstituent/'
+    nifty100  = _fetch_nse_index_symbols(base + 'ind_nifty100list.csv', session)
+    midcap150 = _fetch_nse_index_symbols(base + 'ind_niftymidcap150list.csv', session)
+    combined  = list(dict.fromkeys(nifty100 + midcap150))  # deduplicate, preserve order
+    if len(combined) >= 200:
+        print(f"[✓] Fetched {len(nifty100)} Nifty100 + {len(midcap150)} Midcap150 = {len(combined)} unique F&O stocks from NSE.")
+        return combined
+    else:
+        print(f"[!] NSE fetch returned only {len(combined)} stocks — using fallback list ({len(_NIFTY_FO_FALLBACK)} stocks).")
+        return _NIFTY_FO_FALLBACK
+
+NIFTY_FO_STOCKS = get_fno_universe()
 
 def fetch_single_stock_5m(ticker, session):
     """
