@@ -136,7 +136,7 @@ export default function App() {
         <div className="glass-card kpi-card">
           <div className="kpi-title">Nifty F&O Stocks Scanned</div>
           <div className="kpi-value mono" style={{ color: 'var(--accent-cyan)' }}>
-            {screenerData?.total_scanned || 215}
+            {screenerData?.total_scanned || 250}
           </div>
           <div className="kpi-subtitle">NSE Derivative Universe</div>
         </div>

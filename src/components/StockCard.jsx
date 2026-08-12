@@ -53,15 +53,6 @@ export default function StockCard({ stock, onClick }) {
             <h3 style={{ fontSize: '1.15rem', fontWeight: '800', letterSpacing: '-0.01em' }}>
               {stock.ticker}
             </h3>
-            {isMomentum && (
-              <span style={{
-                fontSize: '0.62rem', padding: '2px 6px', borderRadius: '4px',
-                background: 'rgba(245,158,11,0.18)', color: '#f59e0b',
-                fontWeight: '700', letterSpacing: '0.04em'
-              }}>
-                🔥 MOMENTUM
-              </span>
-            )}
             {stock.exact_match && (
               <span className="badge badge-exact" title="Exact Open=Low / Open=High Match">
                 <Zap size={11} /> EXACT

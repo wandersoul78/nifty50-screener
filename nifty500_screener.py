@@ -123,7 +123,14 @@ def _fetch_nifty500_symbols():
     print(f"[!] NSE fetch failed — using fallback list ({len(_NIFTY500_FALLBACK)} stocks).")
     return _NIFTY500_FALLBACK
 
-NIFTY500_STOCKS = _fetch_nifty500_symbols()
+_NIFTY500_STOCKS_CACHE = None
+
+def get_nifty500_universe_cached():
+    """Lazy-loads the Nifty 500 universe (only on first call — not at import time)."""
+    global _NIFTY500_STOCKS_CACHE
+    if _NIFTY500_STOCKS_CACHE is None:
+        _NIFTY500_STOCKS_CACHE = _fetch_nifty500_symbols()
+    return _NIFTY500_STOCKS_CACHE
 
 
 
@@ -268,8 +275,8 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
       3. Intraday Open=Low / Open=High setup detection (bonus)
     """
 
-    # ── 1. Weekly Supertrend (10,3) ──────────────────────────────────────────
-    weekly = _get_ohlc(ticker, '1wk', '3y', session)
+    # ── 1. Weekly Supertrend (10,3) ─────────────────────────────────────────────────
+    weekly = _get_ohlc(ticker, '1wk', '1y', session)  # 1y (~52 wk candles) is enough for ST(10,3)
     if not weekly:
         return None
     w_c = [float(c) for c in weekly['closes'] if c is not None]
@@ -327,6 +334,9 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
     diff_from_open_pct = None
     pnl_pct            = None
     momentum_confirmed = False
+    ltp                = current_price   # safe fallback — avoids UnboundLocalError
+    prev_day_high      = None            # initialized before fivemin block
+    prev_day_low       = None
     day_open_val       = round(official_open, 2) if official_open else None
     day_low_val        = round(official_low, 2)  if official_low  else None
 
@@ -408,7 +418,7 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
 # ─── Parallel Scan ────────────────────────────────────────────────────────────
 def run_nifty500_scan(tickers=None, tolerance_pct=0.20, st_period=10, st_mult=3):
     if tickers is None:
-        tickers = NIFTY500_STOCKS
+        tickers = get_nifty500_universe_cached()  # lazy-loaded, not at import time
     tickers = list(dict.fromkeys(tickers))
 
     print(f"[*] Scanning {len(tickers)} Nifty 500 stocks | "
@@ -422,7 +432,7 @@ def run_nifty500_scan(tickers=None, tolerance_pct=0.20, st_period=10, st_mult=3)
     qualified = []
     done = 0
 
-    with ThreadPoolExecutor(max_workers=15) as executor:
+    with ThreadPoolExecutor(max_workers=25) as executor:
         futures = {
             executor.submit(fetch_single_stock_full, t, session,
                             tolerance_pct, st_period, st_mult): t
@@ -458,7 +468,7 @@ def run_nifty500_scan(tickers=None, tolerance_pct=0.20, st_period=10, st_mult=3)
         "momentum_setups":          momentum_setups,
     }
 
-    # Write to root
+    # Write to root (timestamped + always a 'latest' copy)
     base     = os.path.dirname(os.path.abspath(__file__))
     out_path = os.path.join(base, "nifty500_data.json")
     with open(out_path, "w", encoding="utf-8") as f:
@@ -471,6 +481,16 @@ def run_nifty500_scan(tickers=None, tolerance_pct=0.20, st_period=10, st_mult=3)
         with open(pub_path, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2)
         print(f"[✓] Also written to nifty500-app/public/")
+
+    # Timestamped CSV for history
+    ts      = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+    df_all  = __import__('pandas').DataFrame(qualified)
+    if not df_all.empty:
+        csv_ts     = os.path.join(base, f"nifty500_{ts}.csv")
+        csv_latest = os.path.join(base, "nifty500_screener_latest.csv")
+        df_all.to_csv(csv_ts, index=False)
+        df_all.to_csv(csv_latest, index=False)
+        print(f"[✓] CSV saved: {csv_ts}")
 
     # CLI summary
     print(f"\n{'='*95}")

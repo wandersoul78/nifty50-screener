@@ -93,12 +93,26 @@ def get_fno_universe():
         print(f"[!] NSE fetch returned only {len(combined)} stocks — using fallback list ({len(_NIFTY_FO_FALLBACK)} stocks).")
         return _NIFTY_FO_FALLBACK
 
-NIFTY_FO_STOCKS = get_fno_universe()
+_NIFTY_FO_STOCKS_CACHE = None
 
-def fetch_single_stock_5m(ticker, session):
+def get_fno_universe_cached():
+    """Lazy-loads the F&O universe (only on first call — not at import time)."""
+    global _NIFTY_FO_STOCKS_CACHE
+    if _NIFTY_FO_STOCKS_CACHE is None:
+        _NIFTY_FO_STOCKS_CACHE = get_fno_universe()
+    return _NIFTY_FO_STOCKS_CACHE
+
+def fetch_single_stock_5m(ticker):
     """
     Fetches official 1-day OHLC (matches Zerodha / TradingView 100%) and 5-minute candles for 5m Entry.
+    Each call creates its own session — safe for concurrent thread use.
     """
+    # ── Per-thread session (thread-safe — no shared state) ─────────────────────
+    session = requests.Session()
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    })
+
     symbol = ticker if ticker.startswith("^") else f"{ticker}.NS"
     
     # ── 1. Fetch Official Daily OHLC (matches Zerodha & TradingView pre-market 100%) ──
@@ -127,13 +141,15 @@ def fetch_single_stock_5m(ticker, session):
         
         data = resp.json()
         result = data['chart']['result'][0]
-        timestamps = result['timestamp']
+        timestamps = result.get('timestamp')
+        if not timestamps:
+            return None
         indicators = result['indicators']['quote'][0]
         
-        opens = indicators.get('open', [])
-        highs = indicators.get('high', [])
-        lows = indicators.get('low', [])
-        closes = indicators.get('close', [])
+        opens   = indicators.get('open', [])
+        highs   = indicators.get('high', [])
+        lows    = indicators.get('low', [])
+        closes  = indicators.get('close', [])
         volumes = indicators.get('volume', [])
         
         dates = [datetime.datetime.fromtimestamp(ts) for ts in timestamps]
@@ -146,21 +162,21 @@ def fetch_single_stock_5m(ticker, session):
         if not today_indices:
             return None
             
-        first_idx = today_indices[0]
+        first_idx  = today_indices[0]
         latest_idx = today_indices[-1]
         
-        entry_price = float(closes[first_idx])
+        entry_price  = float(closes[first_idx])
         latest_close = float(closes[latest_idx])
 
         # Use Official Daily OHLC if available (matches Zerodha / TradingView 100%)
         day_open = official_open if official_open else float(opens[first_idx])
-        day_high = official_high if official_high else float(max([highs[i] for i in today_indices if highs[i] is not None]))
-        day_low  = official_low  if official_low  else float(min([lows[i] for i in today_indices if lows[i] is not None]))
+        day_high = official_high if official_high else float(max(highs[i] for i in today_indices if highs[i] is not None))
+        day_low  = official_low  if official_low  else float(min(lows[i]  for i in today_indices if lows[i]  is not None))
         
         # ── Previous trading day indices ──────────────────────────────────────
         prev_indices = [i for i in range(len(dates)) if dates[i].date() < today_date and closes[i] is not None]
         if prev_indices:
-            prev_close = float(closes[prev_indices[-1]])
+            prev_close    = float(closes[prev_indices[-1]])
             prev_day_date = max(dates[i].date() for i in prev_indices)
             prev_day_indices = [i for i in prev_indices if dates[i].date() == prev_day_date]
             prev_day_high = float(max(highs[i] for i in prev_day_indices if highs[i] is not None)) if prev_day_indices else 0.0
@@ -170,39 +186,44 @@ def fetch_single_stock_5m(ticker, session):
             prev_day_high = 0.0
             prev_day_low  = 0.0
 
-        day_volume = sum([volumes[i] for i in today_indices if volumes[i] is not None])
-        avg_vol = sum([v for v in volumes if v is not None]) / len(dates) * len(today_indices) if len(dates) > 0 else day_volume
+        day_volume = sum(volumes[i] for i in today_indices if volumes[i] is not None)
+
+        # ── Correct avg daily volume: group candles by date, sum per day, average ──
+        from collections import defaultdict
+        vol_by_day = defaultdict(float)
+        for i, dt in enumerate(dates):
+            if volumes[i] is not None:
+                vol_by_day[dt.date()] += volumes[i]
+        # Exclude today (partial day) from the average
+        past_daily_vols = [v for d, v in vol_by_day.items() if d < today_date]
+        avg_vol   = sum(past_daily_vols) / len(past_daily_vols) if past_daily_vols else day_volume
         vol_surge = round(day_volume / avg_vol, 2) if avg_vol > 0 else 1.0
         
         chg_pct = round(((latest_close - prev_close) / prev_close) * 100, 2)
         
         return {
-            "ticker": ticker,
-            "day_open": round(day_open, 2),
-            "entry_price": round(entry_price, 2),
-            "day_high": round(day_high, 2),
-            "day_low": round(day_low, 2),
+            "ticker":       ticker,
+            "day_open":     round(day_open, 2),
+            "entry_price":  round(entry_price, 2),
+            "day_high":     round(day_high, 2),
+            "day_low":      round(day_low, 2),
             "latest_close": round(latest_close, 2),
-            "prev_close": round(prev_close, 2),
+            "prev_close":   round(prev_close, 2),
             "prev_day_high": round(prev_day_high, 2),
-            "prev_day_low": round(prev_day_low, 2),
-            "change_pct": chg_pct,
-            "volume": day_volume,
-            "vol_surge": vol_surge
+            "prev_day_low":  round(prev_day_low, 2),
+            "change_pct":   chg_pct,
+            "volume":       day_volume,
+            "vol_surge":    vol_surge
         }
     except Exception:
         return None
 
 def fetch_all_stocks_parallel(tickers):
     print(f"[*] Parallel fetching 5-min candles for {len(set(tickers))} Nifty F&O & Momentum stocks via Yahoo Finance...")
-    session = requests.Session()
-    session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-    })
-    
+    # Each worker creates its own session — no shared mutable state
     results = {}
     with ThreadPoolExecutor(max_workers=30) as executor:
-        future_to_ticker = {executor.submit(fetch_single_stock_5m, ticker, session): ticker for ticker in set(tickers)}
+        future_to_ticker = {executor.submit(fetch_single_stock_5m, ticker): ticker for ticker in set(tickers)}
         for future in as_completed(future_to_ticker):
             res = future.result()
             if res:
@@ -362,15 +383,17 @@ def print_cli_table(results):
     print("=" * 105 + "\n")
 
 def run_screener(tolerance_pct=0.15):
-    stock_dict = fetch_all_stocks_parallel(NIFTY_FO_STOCKS) or {}
+    stocks = get_fno_universe_cached()  # lazy-loaded, not at import time
+    stock_dict = fetch_all_stocks_parallel(stocks) or {}
     results = analyze_open_high_low(stock_dict, tolerance_pct=tolerance_pct)
     print_cli_table(results)
     
-    json_path = os.path.join(os.path.dirname(__file__), "open_high_low_data.json")
+    base = os.path.dirname(os.path.abspath(__file__))
+    json_path = os.path.join(base, "open_high_low_data.json")
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
         
-    public_dir = os.path.join(os.path.dirname(__file__), "public")
+    public_dir = os.path.join(base, "public")
     if os.path.exists(public_dir):
         public_json_path = os.path.join(public_dir, "open_high_low_data.json")
         with open(public_json_path, "w", encoding="utf-8") as f:
@@ -378,9 +401,11 @@ def run_screener(tolerance_pct=0.15):
 
     if results["all_matches"]:
         df_export = pd.DataFrame(results["all_matches"])
-        csv_filename = f"open_high_low_screener_latest.csv"
-        csv_path = os.path.join(os.path.dirname(__file__), csv_filename)
-        df_export.to_csv(csv_path, index=False)
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+        csv_ts_path     = os.path.join(base, f"open_high_low_{ts}.csv")
+        csv_latest_path = os.path.join(base, "open_high_low_screener_latest.csv")
+        df_export.to_csv(csv_ts_path, index=False)
+        df_export.to_csv(csv_latest_path, index=False)  # always keep a 'latest' copy too
         
     return results
 
