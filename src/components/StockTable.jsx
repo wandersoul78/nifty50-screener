@@ -155,11 +155,11 @@ export default function StockTable({ stocks, onSelectStock }) {
               </tr>
             ) : (
               sortedStocks.map((stock) => {
-                const isBullish  = stock.setup_type === 'OPEN_LOW';
+                const isBullish  = stock.breakout_type ? stock.breakout_type === 'BULLISH' : stock.setup_type === 'OPEN_LOW';
                 const entryPrice = stock.entry_price || stock.ltp;
                 const ltpPrice   = stock.ltp;
                 const pnlPct     = stock.pnl_pct !== undefined ? stock.pnl_pct : (isBullish ? ((ltpPrice - entryPrice)/entryPrice*100) : ((entryPrice - ltpPrice)/entryPrice*100));
-                const isMomentum = stock.momentum_confirmed;
+                const isMomentum = stock.momentum_confirmed || stock.breakout_type;
 
                 return (
                   <tr
@@ -176,10 +176,11 @@ export default function StockTable({ stocks, onSelectStock }) {
                         {isMomentum && (
                           <span style={{
                             fontSize: '0.62rem', padding: '2px 6px', borderRadius: '4px',
-                            background: 'rgba(245,158,11,0.18)', color: '#f59e0b',
+                            background: stock.breakout_type ? 'rgba(167,139,250,0.18)' : 'rgba(245,158,11,0.18)',
+                            color: stock.breakout_type ? '#a78bfa' : '#f59e0b',
                             fontWeight: '700', letterSpacing: '0.04em'
                           }}>
-                            🔥 MOM
+                            {stock.breakout_type ? '🚀 5M BREAK' : '🔥 MOM'}
                           </span>
                         )}
                         {stock.exact_match && (
@@ -193,7 +194,7 @@ export default function StockTable({ stocks, onSelectStock }) {
                     <td>
                       <span className={isBullish ? "badge badge-bullish" : "badge badge-bearish"}>
                         {isBullish ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-                        {isBullish ? "OPEN = LOW" : "OPEN = HIGH"}
+                        {stock.breakout_type ? (isBullish ? "BREAKOUT (>HIGH)" : "BREAKDOWN (<LOW)") : (isBullish ? "OPEN = LOW" : "OPEN = HIGH")}
                       </span>
                     </td>
 

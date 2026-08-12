@@ -46,12 +46,14 @@ export default function App() {
     await loadScreenerData();
   };
 
-  const qualifiedStocks = screenerData?.qualified_stocks || [];
-  const momentumSetups = screenerData?.momentum_setups || [];
+  const qualifiedStocks   = screenerData?.qualified_stocks || [];
+  const momentumSetups    = screenerData?.momentum_setups || [];
   const momentumConfirmed = momentumSetups.filter(s => s.momentum_confirmed);
+  const breakoutStocks    = screenerData?.breakout_stocks || qualifiedStocks.filter(s => s.breakout_5m);
 
   const displayedStocks = activeTab === 'SETUP'    ? momentumSetups
                         : activeTab === 'MOMENTUM' ? momentumConfirmed
+                        : activeTab === 'BREAKOUT' ? breakoutStocks
                         : qualifiedStocks;
 
   const handleExportCSV = () => {
@@ -60,16 +62,16 @@ export default function App() {
     const headers = [
       "Ticker", "Price", "DayChg%", "WeeklyST", "SMA50", "SMA100", "SMA200",
       "50SMADist%", "VolSurge", "Setup", "EntryPrice",
-      "Stoploss", "Target1", "Target2", "PnL%", "MomentumConfirmed"
+      "Stoploss", "Target1", "Target2", "PnL%", "MomentumConfirmed", "Breakout5m"
     ];
     const csvRows = [
       headers.join(","),
       ...displayedStocks.map(s => [
-        s.ticker, s.current_price, s.change_pct,
-        s.weekly_supertrend, s.sma_50, s.sma_100, s.sma_200,
-        s.ma_distance_pct, s.vol_surge, s.setup_type || "",
-        s.entry_price || "", s.stoploss || "", s.target_1 || "",
-        s.target_2 || "", s.pnl_pct || "", s.momentum_confirmed || false
+        s.ticker, s.current_price, s.change_pct, s.weekly_supertrend,
+        s.sma_50, s.sma_100, s.sma_200, s.ma_distance_pct, s.vol_surge,
+        s.setup_type || "MA BULL STACK", s.entry_price || "",
+        s.stoploss || "", s.target_1 || "", s.target_2 || "", s.pnl_pct || "",
+        s.momentum_confirmed, s.breakout_5m
       ].join(","))
     ];
 
@@ -151,7 +153,7 @@ export default function App() {
             <div className="kpi-value mono" style={{ color: 'var(--bullish)' }}>
               {momentumSetups.length}
             </div>
-            <div className="kpi-subtitle" style={{ color: 'var(--bullish)' }}>Open=Low or Open=High</div>
+            <div className="kpi-subtitle" style={{ color: 'var(--bullish)' }}>Open=Low Setups</div>
           </div>
 
           <div className="glass-card kpi-card" style={{ borderLeft: '4px solid var(--momentum)', background: 'rgba(245, 158, 11, 0.06)' }}>
@@ -159,15 +161,16 @@ export default function App() {
             <div className="kpi-value mono" style={{ color: 'var(--momentum)' }}>
               {momentumConfirmed.length}
             </div>
-            <div className="kpi-subtitle" style={{ color: 'var(--momentum)' }}>5m Close &gt; Prev Extreme</div>
+            <div className="kpi-subtitle" style={{ color: 'var(--momentum)' }}>Open=Low + 5m Close &gt; Prev High</div>
           </div>
 
-          <div className="glass-card kpi-card">
-            <div className="kpi-title">Strategy Engine</div>
-            <div className="kpi-value mono" style={{ color: 'var(--accent2)', fontSize: '1.05rem' }}>
-              ST(Wk) + 50/100/200
+          <div className="glass-card kpi-card" style={{ borderLeft: '4px solid #a78bfa', background: 'rgba(167, 139, 250, 0.06)', cursor: 'pointer' }}
+            onClick={() => setActiveTab('BREAKOUT')}>
+            <div className="kpi-title" style={{ color: '#a78bfa' }}>🚀 5m Breakout</div>
+            <div className="kpi-value mono" style={{ color: '#a78bfa' }}>
+              {breakoutStocks.length}
             </div>
-            <div className="kpi-subtitle">Daily MA Bull Stack</div>
+            <div className="kpi-subtitle" style={{ color: '#a78bfa' }}>5m Close &gt; Prev Day High</div>
           </div>
         </div>
       )}
@@ -180,6 +183,7 @@ export default function App() {
         allCount={qualifiedStocks.length}
         setupCount={momentumSetups.length}
         momCount={momentumConfirmed.length}
+        breakoutCount={breakoutStocks.length}
         onSelectStock={setSelectedStock}
       />
 

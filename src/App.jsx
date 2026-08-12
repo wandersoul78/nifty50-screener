@@ -58,13 +58,15 @@ export default function App() {
     return stock.diff_from_open_pct <= tolerance;
   });
 
-  const openLowStocks = filteredStocks.filter(s => s.setup_type === 'OPEN_LOW');
-  const openHighStocks = filteredStocks.filter(s => s.setup_type === 'OPEN_HIGH');
-  const momentumStocks = filteredStocks.filter(s => s.momentum_confirmed);
+  const openLowStocks   = filteredStocks.filter(s => s.setup_type === 'OPEN_LOW');
+  const openHighStocks  = filteredStocks.filter(s => s.setup_type === 'OPEN_HIGH');
+  const momentumStocks  = filteredStocks.filter(s => s.momentum_confirmed);
+  const breakoutStocks  = (screenerData?.breakout_stocks || []);
 
-  const displayedStocks = activeTab === 'BULLISH'  ? openLowStocks
-                        : activeTab === 'BEARISH'  ? openHighStocks
-                        : activeTab === 'MOMENTUM' ? momentumStocks
+  const displayedStocks = activeTab === 'BULLISH'   ? openLowStocks
+                        : activeTab === 'BEARISH'   ? openHighStocks
+                        : activeTab === 'MOMENTUM'  ? momentumStocks
+                        : activeTab === 'BREAKOUT'  ? breakoutStocks
                         : filteredStocks;
 
   const handleExportCSV = () => {
@@ -172,6 +174,15 @@ export default function App() {
           </div>
           <div className="kpi-subtitle" style={{ color: 'var(--momentum)' }}>5-min close crosses Prev Day extreme</div>
         </div>
+
+        <div className="glass-card kpi-card" style={{ borderLeft: '4px solid #a78bfa', background: 'rgba(167,139,250,0.06)', cursor: 'pointer' }}
+          onClick={() => setActiveTab('BREAKOUT')}>
+          <div className="kpi-title" style={{ color: '#a78bfa' }}>🚀 5m Breakout</div>
+          <div className="kpi-value mono" style={{ color: '#a78bfa' }}>
+            {breakoutStocks.length}
+          </div>
+          <div className="kpi-subtitle" style={{ color: '#a78bfa' }}>5m Close &gt; Prev Day High</div>
+        </div>
       </div>
       )} {/* end KPI conditional */}
 
@@ -216,6 +227,8 @@ export default function App() {
         allCount={filteredStocks.length}
         bullishCount={openLowStocks.length}
         bearishCount={openHighStocks.length}
+        momentumCount={momentumStocks.length}
+        breakoutCount={breakoutStocks.length}
         onSelectStock={setSelectedStock}
       />
 

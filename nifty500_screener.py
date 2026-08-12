@@ -334,6 +334,8 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
     diff_from_open_pct = None
     pnl_pct            = None
     momentum_confirmed = False
+    breakout_5m        = False
+    breakout_gap       = None
     ltp                = current_price   # safe fallback — avoids UnboundLocalError
     prev_day_high      = None            # initialized before fivemin block
     prev_day_low       = None
@@ -349,8 +351,8 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
                      and fivemin['opens'][i] is not None
                      and fivemin['closes'][i] is not None]
             if t_idx:
-                first   = t_idx[0]
-                latest  = t_idx[-1]
+                first    = t_idx[0]
+                latest   = t_idx[-1]
                 entry_5m = float(fivemin['closes'][first])
                 ltp      = float(fivemin['closes'][latest])
 
@@ -362,9 +364,15 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
                     prev_day_high = max(float(fivemin['highs'][i]) for i in pd_idx if fivemin['highs'][i])
                     prev_day_low  = min(float(fivemin['lows'][i])  for i in pd_idx if fivemin['lows'][i])
 
+                entry_price = round(entry_5m, 2)
+                pnl_pct     = round((ltp - entry_5m) / entry_5m * 100, 2)
+
+                if prev_day_high:
+                    breakout_5m  = entry_5m > prev_day_high
+                    breakout_gap = round((entry_5m - prev_day_high) / prev_day_high * 100, 2)
+
                 # Official Open=Low difference check (matches Zerodha / TradingView 100%)
                 ol_diff = abs(official_open - official_low) / official_open * 100
-
                 if ol_diff <= tolerance_pct:
                     setup_type         = 'OPEN_LOW'
                     diff_from_open_pct = round(ol_diff, 3)
@@ -373,13 +381,12 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
                     stoploss    = round(official_low * 0.997, 2)
                     target_1    = round(entry_5m + risk_amt * 1.5, 2)
                     target_2    = round(entry_5m + risk_amt * 2.5, 2)
-                    entry_price = round(entry_5m, 2)
-                    pnl_pct     = round((ltp - entry_5m) / entry_5m * 100, 2)
                     if prev_day_high:
                         momentum_confirmed = entry_5m > prev_day_high
 
     signal = ("BULL STACK + OPEN=LOW 🔥" if setup_type == 'OPEN_LOW' and momentum_confirmed
               else "BULL STACK + OPEN=LOW" if setup_type == 'OPEN_LOW'
+              else "BULL STACK + BREAKOUT 🚀" if breakout_5m
               else "MA BULL STACK")
 
     exact_match = (diff_from_open_pct is not None) and (diff_from_open_pct < 0.02)
@@ -409,6 +416,8 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
         "exact_match":         exact_match,
         "pnl_pct":             pnl_pct,
         "momentum_confirmed":  momentum_confirmed,
+        "breakout_5m":         breakout_5m,
+        "breakout_gap":        breakout_gap,
         "prev_day_high":       round(prev_day_high, 2) if prev_day_high else None,
         "prev_day_low":        round(prev_day_low, 2)  if prev_day_low  else None,
         "signal":              signal,
@@ -450,9 +459,11 @@ def run_nifty500_scan(tickers=None, tolerance_pct=0.20, st_period=10, st_mult=3)
 
     momentum_setups = [s for s in qualified if s['setup_type'] is not None]
     pure_st         = [s for s in qualified if s['setup_type'] is None]
+    breakout_stocks = [s for s in qualified if s.get('breakout_5m')]
 
     momentum_setups.sort(key=lambda x: (x['change_pct'], x['momentum_confirmed'], x['vol_surge']), reverse=True)
     pure_st.sort(key=lambda x: x['change_pct'], reverse=True)
+    breakout_stocks.sort(key=lambda x: (x.get('breakout_gap') or 0, x['vol_surge']), reverse=True)
     all_qualified = sorted(qualified, key=lambda x: x['change_pct'], reverse=True)
 
     scan_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -464,8 +475,10 @@ def run_nifty500_scan(tickers=None, tolerance_pct=0.20, st_period=10, st_mult=3)
         "qualified_count":          len(qualified),
         "momentum_setup_count":     len(momentum_setups),
         "momentum_confirmed_count": len([s for s in momentum_setups if s['momentum_confirmed']]),
+        "breakout_count":           len(breakout_stocks),
         "qualified_stocks":         all_qualified,
         "momentum_setups":          momentum_setups,
+        "breakout_stocks":          breakout_stocks,
     }
 
     # Write to root (timestamped + always a 'latest' copy)

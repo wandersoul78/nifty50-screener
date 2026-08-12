@@ -2,8 +2,8 @@ import React from 'react';
 import { ArrowUpRight, ArrowDownRight, Zap, Target, Shield, LogIn, TrendingUp, TrendingDown } from 'lucide-react';
 
 export default function StockCard({ stock, onClick }) {
-  const isBullish  = stock.setup_type === 'OPEN_LOW';
-  const isMomentum = stock.momentum_confirmed === true;
+  const isBullish  = stock.breakout_type ? stock.breakout_type === 'BULLISH' : stock.setup_type === 'OPEN_LOW';
+  const isMomentum = stock.momentum_confirmed === true || stock.breakout_5m === true;
   const entryPrice = stock.entry_price || stock.ltp;
   const ltpPrice   = stock.ltp;
   const pnlPct     = stock.pnl_pct !== undefined ? stock.pnl_pct : (isBullish ? ((ltpPrice - entryPrice)/entryPrice*100) : ((entryPrice - ltpPrice)/entryPrice*100));
@@ -43,7 +43,7 @@ export default function StockCard({ stock, onClick }) {
           alignItems: 'center',
           gap: '3px'
         }}>
-          🔥 MOMENTUM
+          🔥 BREAKOUT
         </div>
       )}
       {/* Top Header Row */}
@@ -60,13 +60,13 @@ export default function StockCard({ stock, onClick }) {
             )}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Diff from Open: <span className="mono" style={{ color: 'var(--text-main)' }}>{stock.diff_from_open_pct}%</span>
+            {stock.diff_from_open_pct !== undefined ? `Diff from Open: ${stock.diff_from_open_pct}%` : `Breakout Gap: ${stock.breakout_gap}%`}
           </div>
         </div>
 
         <span className={isBullish ? "badge badge-bullish" : "badge badge-bearish"}>
           {isBullish ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-          {isBullish ? "OPEN = LOW" : "OPEN = HIGH"}
+          {stock.breakout_type ? (isBullish ? "BREAKOUT (>HIGH)" : "BREAKDOWN (<LOW)") : (isBullish ? "OPEN = LOW" : "OPEN = HIGH")}
         </span>
       </div>
 

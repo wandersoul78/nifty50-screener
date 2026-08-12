@@ -233,23 +233,54 @@ def fetch_all_stocks_parallel(tickers):
     return results
 
 def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
-    results = []
-    scan_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    results    = []
+    breakouts  = []   # 5m close > prev day high, regardless of open=low/high
+    scan_time  = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     for ticker, data in stock_dict.items():
-        day_open     = data['day_open']
-        entry_price  = data['entry_price']
-        day_high     = data['day_high']
-        day_low      = data['day_low']
-        latest_close = data['latest_close']
-        chg_pct      = data['change_pct']
-        vol_surge    = data['vol_surge']
-        day_volume   = data['volume']
+        day_open      = data['day_open']
+        entry_price   = data['entry_price']
+        day_high      = data['day_high']
+        day_low       = data['day_low']
+        latest_close  = data['latest_close']
+        chg_pct       = data['change_pct']
+        vol_surge     = data['vol_surge']
+        day_volume    = data['volume']
         prev_day_high = data.get('prev_day_high', 0.0)
         prev_day_low  = data.get('prev_day_low', 0.0)
         
         if day_open <= 0:
             continue
+
+        # ── Pure Breakout/Breakdown: 5-min close beyond previous day's High/Low (no open=low/high required) ──
+        if prev_day_high > 0 and entry_price > prev_day_high:
+            breakouts.append({
+                "ticker":         ticker,
+                "breakout_type":  "BULLISH",
+                "signal":         "BULLISH BREAKOUT (5m > Prev High)",
+                "entry_price":    round(entry_price, 2),
+                "ltp":            round(latest_close, 2),
+                "prev_day_high":  round(prev_day_high, 2),
+                "prev_day_low":   round(prev_day_low, 2),
+                "change_pct":     chg_pct,
+                "vol_surge":      vol_surge,
+                "open":           day_open,
+                "breakout_gap":   round((entry_price - prev_day_high) / prev_day_high * 100, 2),
+            })
+        elif prev_day_low > 0 and entry_price < prev_day_low:
+            breakouts.append({
+                "ticker":         ticker,
+                "breakout_type":  "BEARISH",
+                "signal":         "BEARISH BREAKDOWN (5m < Prev Low)",
+                "entry_price":    round(entry_price, 2),
+                "ltp":            round(latest_close, 2),
+                "prev_day_high":  round(prev_day_high, 2),
+                "prev_day_low":   round(prev_day_low, 2),
+                "change_pct":     chg_pct,
+                "vol_surge":      vol_surge,
+                "open":           day_open,
+                "breakout_gap":   round((prev_day_low - entry_price) / prev_day_low * 100, 2),
+            })
             
         open_low_diff_pct = abs(day_open - day_low) / day_open * 100
         is_open_low = open_low_diff_pct <= tolerance_pct
@@ -320,6 +351,7 @@ def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
             "prev_day_low": round(prev_day_low, 2)
         })
         
+    breakouts.sort(key=lambda x: (x["breakout_gap"], x["vol_surge"]), reverse=True)
     open_low_stocks  = [r for r in results if r["setup_type"] == "OPEN_LOW"]
     open_high_stocks = [r for r in results if r["setup_type"] == "OPEN_HIGH"]
     momentum_stocks  = [r for r in results if r["momentum_confirmed"]]
@@ -329,15 +361,17 @@ def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
     momentum_stocks.sort(key=lambda x: (x["change_pct"], x["vol_surge"]), reverse=True)
 
     return {
-        "scan_time": scan_time,
-        "total_scanned": len(stock_dict),
-        "open_low_count": len(open_low_stocks),
-        "open_high_count": len(open_high_stocks),
-        "momentum_count": len(momentum_stocks),
-        "open_low_stocks": open_low_stocks,
+        "scan_time":        scan_time,
+        "total_scanned":    len(stock_dict),
+        "open_low_count":   len(open_low_stocks),
+        "open_high_count":  len(open_high_stocks),
+        "momentum_count":   len(momentum_stocks),
+        "breakout_count":   len(breakouts),
+        "open_low_stocks":  open_low_stocks,
         "open_high_stocks": open_high_stocks,
-        "momentum_stocks": momentum_stocks,
-        "all_matches": open_low_stocks + open_high_stocks
+        "momentum_stocks":  momentum_stocks,
+        "breakout_stocks":  breakouts,
+        "all_matches":      open_low_stocks + open_high_stocks
     }
 
 def print_cli_table(results):

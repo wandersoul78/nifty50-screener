@@ -110,12 +110,13 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
     open_low_stocks   = sorted([s for s in filtered_stocks if s["setup_type"] == "OPEN_LOW"], key=lambda s: s.get("change_pct", 0), reverse=True)
     open_high_stocks  = sorted([s for s in filtered_stocks if s["setup_type"] == "OPEN_HIGH"], key=lambda s: s.get("change_pct", 0), reverse=True)
     momentum_stocks   = sorted([s for s in filtered_stocks if s.get("momentum_confirmed") is True], key=lambda s: s.get("change_pct", 0), reverse=True)
+    breakout_stocks   = sorted(scan_results.get("breakout_stocks", []), key=lambda s: s.get("breakout_gap", 0), reverse=True)
     exact_count       = len([s for s in filtered_stocks if s["exact_match"]])
 
     # KPI Summary Section
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        st.metric("Total Scanned", scan_results.get("total_scanned", 201), "NSE F&O Universe")
+        st.metric("Total Scanned", scan_results.get("total_scanned", 250), "NSE F&O Universe")
     with col2:
         st.metric("Open = Low (BUY)", len(open_low_stocks), "Bullish Setups")
     with col3:
@@ -123,17 +124,18 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
     with col4:
         st.metric("Exact Matches", exact_count, "Zero Shadow Candidates")
     with col5:
-        st.metric("🔥 Momentum", len(momentum_stocks), "5-min close crosses Prev Day extreme")
+        st.metric("🚀 5m Breakouts", len(breakout_stocks), "5m Close > High or < Low")
 
     st.info("💡 **PnL (Entry → LTP)** shows exact gain/loss from 1st 5-Min Candle Close Entry Price to Current LTP (🟢 Green = Profit, 🔴 Red = Loss).")
 
     st.markdown("---")
 
-    tab_all, tab_bull, tab_bear, tab_mom = st.tabs([
+    tab_all, tab_bull, tab_bear, tab_mom, tab_break = st.tabs([
         f"📊 All Setups ({len(filtered_stocks)})",
         f"🟢 Bullish Open=Low ({len(open_low_stocks)})",
         f"🔴 Bearish Open=High ({len(open_high_stocks)})",
-        f"🔥 Momentum ({len(momentum_stocks)})"
+        f"🔥 Momentum ({len(momentum_stocks)})",
+        f"🚀 5m Breakouts ({len(breakout_stocks)})"
     ])
 
     def format_df_for_display(stock_list, include_momentum_cols=False):
@@ -144,7 +146,7 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
         cols = [
             "ticker", "setup_type", "open", "entry_price", "ltp", "pnl_pct", 
             "change_pct", "vol_surge", "stoploss", "target_1", "target_2", "exact_match",
-            "momentum_confirmed"
+            "momentum_confirmed", "breakout_type", "signal"
         ]
         if include_momentum_cols:
             for extra in ["prev_day_high", "prev_day_low"]:
@@ -159,24 +161,36 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
             "change_pct": "Day Chg (%)", "vol_surge": "Vol Surge", "stoploss": "Stoploss (₹)",
             "target_1": "Target 1 (₹)", "target_2": "Target 2 (₹)",
             "exact_match": "Exact", "momentum_confirmed": "🔥 Momentum",
-            "prev_day_high": "Prev Day High (₹)", "prev_day_low": "Prev Day Low (₹)"
+            "prev_day_high": "Prev Day High (₹)", "prev_day_low": "Prev Day Low (₹)",
+            "breakout_type": "Type", "signal": "Signal"
         }
         df.columns = [rename_map.get(c, c) for c in df.columns]
         
-        df["PnL % (Entry→LTP)"] = df["PnL % (Entry→LTP)"].apply(
-            lambda x: f"🟢 +{float(x):.2f}%" if float(x) >= 0 else f"🔴 {float(x):.2f}%"
-        )
+        if "PnL % (Entry→LTP)" in df.columns:
+            df["PnL % (Entry→LTP)"] = df["PnL % (Entry→LTP)"].apply(
+                lambda x: f"🟢 +{float(x):.2f}%" if x is not None and float(x) >= 0 else f"🔴 {float(x):.2f}%" if x is not None else "—"
+            )
         
-        df["Day Chg (%)"]     = df["Day Chg (%)"].apply(lambda x: f"{float(x):+.2f}%")
-        df["Vol Surge"]       = df["Vol Surge"].apply(lambda x: f"{float(x):.2f}x")
-        df["Open (₹)"]        = df["Open (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
-        df["5m Entry (₹)"]    = df["5m Entry (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
-        df["LTP (₹)"]         = df["LTP (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
-        df["Stoploss (₹)"]    = df["Stoploss (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
-        df["Target 1 (₹)"]   = df["Target 1 (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
-        df["Target 2 (₹)"]   = df["Target 2 (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
-        df["Exact"]           = df["Exact"].apply(lambda x: "⭐ EXACT" if x else "Standard")
-        df["🔥 Momentum"]     = df["🔥 Momentum"].apply(lambda x: "🔥 YES" if x else "—")
+        if "Day Chg (%)" in df.columns:
+            df["Day Chg (%)"]     = df["Day Chg (%)"].apply(lambda x: f"{float(x):+.2f}%")
+        if "Vol Surge" in df.columns:
+            df["Vol Surge"]       = df["Vol Surge"].apply(lambda x: f"{float(x):.2f}x")
+        if "Open (₹)" in df.columns:
+            df["Open (₹)"]        = df["Open (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
+        if "5m Entry (₹)" in df.columns:
+            df["5m Entry (₹)"]    = df["5m Entry (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
+        if "LTP (₹)" in df.columns:
+            df["LTP (₹)"]         = df["LTP (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
+        if "Stoploss (₹)" in df.columns:
+            df["Stoploss (₹)"]    = df["Stoploss (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
+        if "Target 1 (₹)" in df.columns:
+            df["Target 1 (₹)"]   = df["Target 1 (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
+        if "Target 2 (₹)" in df.columns:
+            df["Target 2 (₹)"]   = df["Target 2 (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
+        if "Exact" in df.columns:
+            df["Exact"]           = df["Exact"].apply(lambda x: "⭐ EXACT" if x else "Standard")
+        if "🔥 Momentum" in df.columns:
+            df["🔥 Momentum"]     = df["🔥 Momentum"].apply(lambda x: "🔥 YES" if x else "—")
         if "Prev Day High (₹)" in df.columns:
             df["Prev Day High (₹)"] = df["Prev Day High (₹)"].apply(lambda x: f"₹{float(x):,.2f}")
         if "Prev Day Low (₹)" in df.columns:
@@ -207,18 +221,17 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
 
     with tab_mom:
         if momentum_stocks:
-            st.info(
-                "🔥 **Momentum Condition:** Open=Low stocks whose 5-min close is **above** the previous day's High, "
-                "or Open=High stocks whose 5-min close is **below** the previous day's Low. "
-                "These are the highest-conviction breakout/breakdown setups."
-            )
             df_mom = format_df_for_display(momentum_stocks, include_momentum_cols=True)
             st.dataframe(df_mom, use_container_width=True, height=480)
         else:
-            st.warning(
-                "No momentum-confirmed stocks right now. Momentum requires the 5-min candle close "
-                "to cross the previous day's High (for Open=Low) or Low (for Open=High)."
-            )
+            st.info("No Momentum-confirmed setups detected.")
+
+    with tab_break:
+        if breakout_stocks:
+            df_break = format_df_for_display(breakout_stocks, include_momentum_cols=True)
+            st.dataframe(df_break, use_container_width=True, height=480)
+        else:
+            st.info("No 5-min Breakout / Breakdown setups detected.")
 
     if filtered_stocks:
         df_export = pd.DataFrame(filtered_stocks)
@@ -240,7 +253,7 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
 else:
 
     st.title("🚀 Nifty 500 MA Bull Stack + Weekly ST Screener")
-    st.caption("Weekly ST(10,3) ✅  Price > 50 SMA > 100 SMA > 200 SMA ✅  |  Bullish Open=Low Intraday Setups (Buy Only)")
+    st.caption("Weekly ST(10,3) ✅  Price > 50 SMA > 100 SMA > 200 SMA ✅  |  Intraday Setups & 5m Breakouts")
 
     st.sidebar.header("⚙️ Nifty 500 Controls")
 
@@ -250,13 +263,13 @@ else:
         max_value=0.50,
         value=0.20,
         step=0.05,
-        help="Buffer for intraday Open=Low setup detection"
+        help="Filter Open=Low stocks where Open price is within X% of Low"
     )
 
     strict_only = st.sidebar.checkbox(
         "Zap Exact Matches Only (Diff < 0.02%)",
         value=False,
-        help="Only show Open=Low setups with near-zero lower shadow"
+        help="Only show stocks with near-zero shadow"
     )
 
     if st.sidebar.button("🔄 Run Nifty 500 Scanner", use_container_width=True, type="primary"):
@@ -271,6 +284,7 @@ else:
 
     qualified  = sorted(nifty500_results.get("qualified_stocks", []), key=lambda s: s.get("change_pct", 0), reverse=True)
     raw_setups = nifty500_results.get("momentum_setups",  [])
+    breakout_stocks = sorted(nifty500_results.get("breakout_stocks", []), key=lambda s: s.get("breakout_gap", 0), reverse=True)
 
     setups = sorted([
         s for s in raw_setups
@@ -286,14 +300,14 @@ else:
     with col3:
         st.metric("🟢 Open = Low Setups", len(setups), "Bullish Buy Candidates")
     with col4:
-        st.metric("🔥 Momentum Conf.", len(mom_conf), "5-min close > Prev Day High")
+        st.metric("🔥 Momentum Conf.", len(mom_conf), "Open=Low + 5m > Prev High")
     with col5:
-        st.metric("📅 Last Scan", nifty500_results.get("scan_time", "—")[:16], "")
+        st.metric("🚀 5m Breakout", len(breakout_stocks), "5m Close > Prev Day High")
 
     st.info(
         "💡 **Logic:** Stocks must have **Price > Weekly Supertrend(10,3)** + **Price > 50 SMA > 100 SMA > 200 SMA** "
-        "(MA Bull Stack evaluated in background). Qualified stocks are then checked for today's **Open = Low** (Bullish Buy) setup. "
-        "🔥 Momentum = 5-min close breaks above previous day's High."
+        "(MA Bull Stack evaluated in background). "
+        "🚀 **5m Breakout:** 5-min close breaks above previous day's High (no Open=Low required)."
     )
     st.markdown("---")
 
@@ -304,7 +318,7 @@ else:
         base_cols = ["ticker", "current_price", "change_pct", "vol_surge",
                      "weekly_supertrend", "sma_50", "sma_100", "sma_200", "ma_distance_pct"]
         extra = ["day_open", "day_low", "entry_price", "stoploss", "target_1", "target_2",
-                 "exact_match", "pnl_pct", "momentum_confirmed"] if intraday else []
+                 "exact_match", "pnl_pct", "momentum_confirmed", "breakout_5m"] if intraday else []
         cols = [c for c in base_cols + extra if c in df.columns]
         df = df[cols].copy()
 
@@ -315,7 +329,8 @@ else:
             "ma_distance_pct": "50 SMA Dist%", "day_open": "Open (₹)", "day_low": "Low (₹)",
             "entry_price": "5m Entry (₹)", "stoploss": "Stoploss (₹)",
             "target_1": "Target 1 (₹)", "target_2": "Target 2 (₹)",
-            "exact_match": "Exact", "pnl_pct": "PnL%", "momentum_confirmed": "🔥 Mom"
+            "exact_match": "Exact", "pnl_pct": "PnL%", "momentum_confirmed": "🔥 Mom",
+            "breakout_5m": "🚀 Breakout"
         }
         df.columns = [rename.get(c, c) for c in df.columns]
 
@@ -334,12 +349,15 @@ else:
             df["Exact"] = df["Exact"].apply(lambda x: "⭐ EXACT" if x else "Standard")
         if "🔥 Mom" in df.columns:
             df["🔥 Mom"] = df["🔥 Mom"].apply(lambda x: "🔥 YES" if x else "—")
+        if "🚀 Breakout" in df.columns:
+            df["🚀 Breakout"] = df["🚀 Breakout"].apply(lambda x: "🚀 YES" if x else "—")
         return df
 
-    tab_all, tab_setup, tab_mom = st.tabs([
+    tab_all, tab_setup, tab_mom, tab_break = st.tabs([
         f"✅ Bull Stack Qualified ({len(qualified)})",
         f"📈 Intraday Setups ({len(setups)})",
-        f"🔥 Momentum Confirmed ({len(mom_conf)})"
+        f"🔥 Momentum Confirmed ({len(mom_conf)})",
+        f"🚀 5m Breakouts ({len(breakout_stocks)})"
     ])
 
     with tab_all:
@@ -350,10 +368,9 @@ else:
 
     with tab_setup:
         if setups:
-            st.info("🟢 These stocks passed Weekly ST + MA Bull Stack (Price > 50 > 100 > 200 SMA) **AND** show a Bullish **Open = Low** buy setup today.")
             st.dataframe(fmt_500(setups, intraday=True), use_container_width=True, height=500)
         else:
-            st.warning("No Bullish Open=Low setups on qualified stocks today.")
+            st.info("No Open=Low intraday setups detected.")
 
     with tab_mom:
         if mom_conf:

@@ -5,7 +5,7 @@ const fmt = (v, decimals = 2) => v != null ? `₹${Number(v).toLocaleString('en-
 const fmtPct = v => v != null ? `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(2)}%` : '—';
 
 export default function StockTable({ stocks, activeTab, setActiveTab,
-                                     allCount, setupCount, momCount,
+                                     allCount, setupCount, momCount, breakoutCount,
                                      onSelectStock }) {
   const [search, setSearch]   = useState('');
   const [sortField, setSort]  = useState('change_pct');
@@ -37,7 +37,7 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
     </th>
   );
 
-  const showIntraday = activeTab === 'SETUP' || activeTab === 'MOMENTUM';
+  const showIntraday = activeTab === 'SETUP' || activeTab === 'MOMENTUM' || activeTab === 'BREAKOUT';
 
   return (
     <div className="glass-card" style={{ padding: '20px' }}>
@@ -55,6 +55,11 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
           <button className={`tab-pill ${activeTab === 'MOMENTUM' ? 'active-momentum' : ''}`}
             onClick={() => setActiveTab('MOMENTUM')}>
             🔥 Momentum ({momCount})
+          </button>
+          <button className={`tab-pill ${activeTab === 'BREAKOUT' ? 'active-momentum' : ''}`}
+            onClick={() => setActiveTab('BREAKOUT')}
+            style={{ background: activeTab === 'BREAKOUT' ? '#a78bfa' : undefined, borderColor: '#a78bfa', color: activeTab === 'BREAKOUT' ? '#fff' : '#a78bfa' }}>
+            🚀 5m Breakout ({breakoutCount || 0})
           </button>
         </div>
 
@@ -82,6 +87,11 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
       {activeTab === 'MOMENTUM' && (
         <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
           🔥 <strong style={{color:'var(--momentum)'}}>Elite picks</strong>: MA Bull Stack + Weekly ST + Open=Low setup + <strong>5-min close above previous day's High</strong>.
+        </div>
+      )}
+      {activeTab === 'BREAKOUT' && (
+        <div style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+          🚀 <strong style={{color:'#a78bfa'}}>5m Breakout</strong>: MA Bull Stack qualified stocks where <strong style={{color:'#a78bfa'}}>5-min close is above previous day's High</strong> (no Open=Low required).
         </div>
       )}
 
