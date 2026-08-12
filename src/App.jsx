@@ -62,11 +62,13 @@ export default function App() {
   const openHighStocks  = filteredStocks.filter(s => s.setup_type === 'OPEN_HIGH');
   const momentumStocks  = filteredStocks.filter(s => s.momentum_confirmed);
   const breakoutStocks  = (screenerData?.breakout_stocks || []);
+  const gapStocks       = (screenerData?.gap_stocks || []);
 
-  const displayedStocks = activeTab === 'BULLISH'   ? openLowStocks
-                        : activeTab === 'BEARISH'   ? openHighStocks
-                        : activeTab === 'MOMENTUM'  ? momentumStocks
-                        : activeTab === 'BREAKOUT'  ? breakoutStocks
+  const displayedStocks = activeTab === 'BULLISH'    ? openLowStocks
+                        : activeTab === 'BEARISH'    ? openHighStocks
+                        : activeTab === 'MOMENTUM'   ? momentumStocks
+                        : activeTab === 'BREAKOUT'   ? breakoutStocks
+                        : activeTab === 'GAP_STOCKS' ? gapStocks
                         : filteredStocks;
 
   const handleExportCSV = () => {
@@ -118,8 +120,8 @@ export default function App() {
       {/* Loading Skeleton — shown only on very first load when no data exists yet */}
       {loading && !screenerData && (
         <div style={{ marginBottom: '24px' }}>
-          <div className="grid grid-4" style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(5, 1fr)' }}>
-            {[...Array(5)].map((_, i) => (
+          <div className="grid grid-4" style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(6, 1fr)' }}>
+            {[...Array(6)].map((_, i) => (
               <div key={i} className="glass-card kpi-card skeleton" style={{ height: '90px' }} />
             ))}
           </div>
@@ -134,7 +136,7 @@ export default function App() {
 
       {/* Hero KPI Stats Grid — hidden during initial skeleton load */}
       {(!loading || screenerData) && (
-      <div className="grid grid-4" style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(5, 1fr)' }}>
+      <div className="grid grid-4" style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(6, 1fr)' }}>
         <div className="glass-card kpi-card">
           <div className="kpi-title">Nifty F&O Stocks Scanned</div>
           <div className="kpi-value mono" style={{ color: 'var(--accent-cyan)' }}>
@@ -167,14 +169,6 @@ export default function App() {
           <div className="kpi-subtitle" style={{ color: 'var(--accent-amber)' }}>Zero Shadow Candidates</div>
         </div>
 
-        <div className="glass-card kpi-card" style={{ borderLeft: '4px solid var(--momentum)', background: 'rgba(245, 158, 11, 0.06)' }}>
-          <div className="kpi-title" style={{ color: 'var(--momentum)' }}>🔥 Momentum Confirmed</div>
-          <div className="kpi-value mono" style={{ color: 'var(--momentum)' }}>
-            {momentumStocks.length}
-          </div>
-          <div className="kpi-subtitle" style={{ color: 'var(--momentum)' }}>5-min close crosses Prev Day extreme</div>
-        </div>
-
         <div className="glass-card kpi-card" style={{ borderLeft: '4px solid #a78bfa', background: 'rgba(167,139,250,0.06)', cursor: 'pointer' }}
           onClick={() => setActiveTab('BREAKOUT')}>
           <div className="kpi-title" style={{ color: '#a78bfa' }}>🚀 5m Breakout</div>
@@ -183,18 +177,31 @@ export default function App() {
           </div>
           <div className="kpi-subtitle" style={{ color: '#a78bfa' }}>5m Close &gt; Prev Day High</div>
         </div>
+
+        <div className="glass-card kpi-card" style={{ borderLeft: '4px solid #ec4899', background: 'rgba(236,72,153,0.06)', cursor: 'pointer' }}
+          onClick={() => setActiveTab('GAP_STOCKS')}>
+          <div className="kpi-title" style={{ color: '#ec4899' }}>⚡ Gap Up / Down</div>
+          <div className="kpi-value mono" style={{ color: '#ec4899' }}>
+            {gapStocks.length}
+          </div>
+          <div className="kpi-subtitle" style={{ color: '#ec4899' }}>Open &gt; High or &lt; Low</div>
+        </div>
       </div>
       )} {/* end KPI conditional */}
 
       {/* Top Priority High-Probability Cards */}
       {(() => {
-        const cardStocks = activeTab === 'MOMENTUM' ? momentumStocks
-                         : activeTab === 'BULLISH'  ? openLowStocks
-                         : activeTab === 'BEARISH'  ? openHighStocks
+        const cardStocks = activeTab === 'MOMENTUM'   ? momentumStocks
+                         : activeTab === 'BULLISH'    ? openLowStocks
+                         : activeTab === 'BEARISH'    ? openHighStocks
+                         : activeTab === 'BREAKOUT'   ? breakoutStocks
+                         : activeTab === 'GAP_STOCKS' ? gapStocks
                          : filteredStocks;
-        const cardTitle  = activeTab === 'MOMENTUM' ? '🔥 Top Momentum Picks'
-                         : activeTab === 'BULLISH'  ? '🟢 Top Bullish Setups'
-                         : activeTab === 'BEARISH'  ? '🔴 Top Bearish Setups'
+        const cardTitle  = activeTab === 'MOMENTUM'   ? '🔥 Top Momentum Picks'
+                         : activeTab === 'BULLISH'    ? '🟢 Top Bullish Setups'
+                         : activeTab === 'BEARISH'    ? '🔴 Top Bearish Setups'
+                         : activeTab === 'BREAKOUT'   ? '🚀 5m Breakouts'
+                         : activeTab === 'GAP_STOCKS' ? '⚡ Gap Up / Gap Down Stocks'
                          : '⚡ Top High-Volume Priority Candidates';
         return cardStocks.length > 0 ? (
           <div style={{ marginBottom: '32px' }}>
@@ -229,6 +236,7 @@ export default function App() {
         bearishCount={openHighStocks.length}
         momentumCount={momentumStocks.length}
         breakoutCount={breakoutStocks.length}
+        gapCount={gapStocks.length}
         onSelectStock={setSelectedStock}
       />
 

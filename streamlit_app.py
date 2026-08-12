@@ -111,10 +111,11 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
     open_high_stocks  = sorted([s for s in filtered_stocks if s["setup_type"] == "OPEN_HIGH"], key=lambda s: s.get("change_pct", 0), reverse=True)
     momentum_stocks   = sorted([s for s in filtered_stocks if s.get("momentum_confirmed") is True], key=lambda s: s.get("change_pct", 0), reverse=True)
     breakout_stocks   = sorted(scan_results.get("breakout_stocks", []), key=lambda s: s.get("breakout_gap", 0), reverse=True)
+    gap_stocks        = sorted(scan_results.get("gap_stocks", []), key=lambda s: s.get("change_pct", 0), reverse=True)
     exact_count       = len([s for s in filtered_stocks if s["exact_match"]])
 
     # KPI Summary Section
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
         st.metric("Total Scanned", scan_results.get("total_scanned", 250), "NSE F&O Universe")
     with col2:
@@ -125,17 +126,20 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
         st.metric("Exact Matches", exact_count, "Zero Shadow Candidates")
     with col5:
         st.metric("🚀 5m Breakouts", len(breakout_stocks), "5m Close > High or < Low")
+    with col6:
+        st.metric("⚡ Gap Up / Down", len(gap_stocks), "Open > Prev High or < Prev Low")
 
     st.info("💡 **PnL (Entry → LTP)** shows exact gain/loss from 1st 5-Min Candle Close Entry Price to Current LTP (🟢 Green = Profit, 🔴 Red = Loss).")
 
     st.markdown("---")
 
-    tab_all, tab_bull, tab_bear, tab_mom, tab_break = st.tabs([
+    tab_all, tab_bull, tab_bear, tab_mom, tab_break, tab_gap = st.tabs([
         f"📊 All Setups ({len(filtered_stocks)})",
         f"🟢 Bullish Open=Low ({len(open_low_stocks)})",
         f"🔴 Bearish Open=High ({len(open_high_stocks)})",
         f"🔥 Momentum ({len(momentum_stocks)})",
-        f"🚀 5m Breakouts ({len(breakout_stocks)})"
+        f"🚀 5m Breakouts ({len(breakout_stocks)})",
+        f"⚡ Gap Up / Down ({len(gap_stocks)})"
     ])
 
     def format_df_for_display(stock_list, include_momentum_cols=False):
@@ -233,6 +237,13 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
         else:
             st.info("No 5-min Breakout / Breakdown setups detected.")
 
+    with tab_gap:
+        if gap_stocks:
+            df_gap = format_df_for_display(gap_stocks, include_momentum_cols=True)
+            st.dataframe(df_gap, use_container_width=True, height=480)
+        else:
+            st.info("No Gap Up or Gap Down stocks detected.")
+
     if filtered_stocks:
         df_export = pd.DataFrame(filtered_stocks)
         csv_bytes = df_export.to_csv(index=False).encode('utf-8')
@@ -285,6 +296,7 @@ else:
     qualified  = sorted(nifty500_results.get("qualified_stocks", []), key=lambda s: s.get("change_pct", 0), reverse=True)
     raw_setups = nifty500_results.get("momentum_setups",  [])
     breakout_stocks = sorted(nifty500_results.get("breakout_stocks", []), key=lambda s: s.get("breakout_gap", 0), reverse=True)
+    gap_stocks      = sorted(nifty500_results.get("gap_stocks", []), key=lambda s: s.get("change_pct", 0), reverse=True)
 
     setups = sorted([
         s for s in raw_setups
@@ -292,7 +304,7 @@ else:
     ], key=lambda s: s.get("change_pct", 0), reverse=True)
     mom_conf   = sorted([s for s in setups if s.get("momentum_confirmed")], key=lambda s: s.get("change_pct", 0), reverse=True)
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
         st.metric("🔭 Scanned", nifty500_results.get("total_scanned", 0), "Nifty 500 Universe")
     with col2:
@@ -303,6 +315,8 @@ else:
         st.metric("🔥 Momentum Conf.", len(mom_conf), "Open=Low + 5m > Prev High")
     with col5:
         st.metric("🚀 5m Breakout", len(breakout_stocks), "5m Close > Prev Day High")
+    with col6:
+        st.metric("⚡ Gap Up / Down", len(gap_stocks), "Open > Prev High or < Prev Low")
 
     st.info(
         "💡 **Logic:** Stocks must have **Price > Weekly Supertrend(10,3)** + **Price > 50 SMA > 100 SMA > 200 SMA** "
@@ -318,7 +332,7 @@ else:
         base_cols = ["ticker", "current_price", "change_pct", "vol_surge",
                      "weekly_supertrend", "sma_50", "sma_100", "sma_200", "ma_distance_pct"]
         extra = ["day_open", "day_low", "entry_price", "stoploss", "target_1", "target_2",
-                 "exact_match", "pnl_pct", "momentum_confirmed", "breakout_5m"] if intraday else []
+                 "exact_match", "pnl_pct", "momentum_confirmed", "breakout_5m", "prev_day_high", "prev_day_low"] if intraday else []
         cols = [c for c in base_cols + extra if c in df.columns]
         df = df[cols].copy()
 
@@ -330,12 +344,12 @@ else:
             "entry_price": "5m Entry (₹)", "stoploss": "Stoploss (₹)",
             "target_1": "Target 1 (₹)", "target_2": "Target 2 (₹)",
             "exact_match": "Exact", "pnl_pct": "PnL%", "momentum_confirmed": "🔥 Mom",
-            "breakout_5m": "🚀 Breakout"
+            "breakout_5m": "🚀 Breakout", "prev_day_high": "Prev High (₹)", "prev_day_low": "Prev Low (₹)"
         }
         df.columns = [rename.get(c, c) for c in df.columns]
 
         for col in ["Price (₹)", "Weekly ST (₹)", "50 SMA (₹)", "100 SMA (₹)", "200 SMA (₹)",
-                    "Open (₹)", "Low (₹)", "5m Entry (₹)", "Stoploss (₹)", "Target 1 (₹)", "Target 2 (₹)"]:
+                    "Open (₹)", "Low (₹)", "5m Entry (₹)", "Stoploss (₹)", "Target 1 (₹)", "Target 2 (₹)", "Prev High (₹)", "Prev Low (₹)"]:
             if col in df.columns:
                 df[col] = df[col].apply(lambda x: f"₹{float(x):,.2f}" if x is not None and not pd.isna(x) else "—")
 
@@ -353,11 +367,12 @@ else:
             df["🚀 Breakout"] = df["🚀 Breakout"].apply(lambda x: "🚀 YES" if x else "—")
         return df
 
-    tab_all, tab_setup, tab_mom, tab_break = st.tabs([
+    tab_all, tab_setup, tab_mom, tab_break, tab_gap = st.tabs([
         f"✅ Bull Stack Qualified ({len(qualified)})",
         f"📈 Intraday Setups ({len(setups)})",
         f"🔥 Momentum Confirmed ({len(mom_conf)})",
-        f"🚀 5m Breakouts ({len(breakout_stocks)})"
+        f"🚀 5m Breakouts ({len(breakout_stocks)})",
+        f"⚡ Gap Up / Down ({len(gap_stocks)})"
     ])
 
     with tab_all:
@@ -385,6 +400,13 @@ else:
             st.dataframe(fmt_500(breakout_stocks, intraday=True), use_container_width=True, height=500)
         else:
             st.info("No 5-min breakout stocks detected.")
+
+    with tab_gap:
+        if gap_stocks:
+            st.info("⚡ **Gap Up / Gap Down**: Stocks that opened above previous day's High or below previous day's Low.")
+            st.dataframe(fmt_500(gap_stocks, intraday=True), use_container_width=True, height=500)
+        else:
+            st.info("No Gap Up or Gap Down stocks detected.")
 
     if qualified:
         csv = pd.DataFrame(qualified).to_csv(index=False).encode("utf-8")

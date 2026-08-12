@@ -5,7 +5,7 @@ const fmt = (v, decimals = 2) => v != null ? `₹${Number(v).toLocaleString('en-
 const fmtPct = v => v != null ? `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(2)}%` : '—';
 
 export default function StockTable({ stocks, activeTab, setActiveTab,
-                                     allCount, setupCount, momCount, breakoutCount,
+                                     allCount, setupCount, momCount, breakoutCount, gapCount,
                                      onSelectStock }) {
   const [search, setSearch]   = useState('');
   const [sortField, setSort]  = useState('change_pct');
@@ -37,7 +37,7 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
     </th>
   );
 
-  const showIntraday = activeTab === 'SETUP' || activeTab === 'MOMENTUM' || activeTab === 'BREAKOUT';
+  const showIntraday = activeTab === 'SETUP' || activeTab === 'MOMENTUM' || activeTab === 'BREAKOUT' || activeTab === 'GAP_STOCKS';
 
   return (
     <div className="glass-card" style={{ padding: '20px' }}>
@@ -60,6 +60,11 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
             onClick={() => setActiveTab('BREAKOUT')}
             style={{ background: activeTab === 'BREAKOUT' ? '#a78bfa' : undefined, borderColor: '#a78bfa', color: activeTab === 'BREAKOUT' ? '#fff' : '#a78bfa' }}>
             🚀 5m Breakout ({breakoutCount || 0})
+          </button>
+          <button className={`tab-pill ${activeTab === 'GAP_STOCKS' ? 'active-momentum' : ''}`}
+            onClick={() => setActiveTab('GAP_STOCKS')}
+            style={{ background: activeTab === 'GAP_STOCKS' ? '#ec4899' : undefined, borderColor: '#ec4899', color: activeTab === 'GAP_STOCKS' ? '#fff' : '#ec4899' }}>
+            ⚡ Gap Up/Down ({gapCount || 0})
           </button>
         </div>
 
@@ -92,6 +97,11 @@ export default function StockTable({ stocks, activeTab, setActiveTab,
       {activeTab === 'BREAKOUT' && (
         <div style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
           🚀 <strong style={{color:'#a78bfa'}}>5m Breakout</strong>: MA Bull Stack qualified stocks where <strong style={{color:'#a78bfa'}}>5-min close is above previous day's High</strong> (no Open=Low required).
+        </div>
+      )}
+      {activeTab === 'GAP_STOCKS' && (
+        <div style={{ background: 'rgba(236,72,153,0.08)', border: '1px solid rgba(236,72,153,0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+          ⚡ <strong style={{color:'#ec4899'}}>Gap Up / Down</strong>: Stocks that opened above previous day's High or below previous day's Low.
         </div>
       )}
 

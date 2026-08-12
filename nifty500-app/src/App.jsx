@@ -50,10 +50,12 @@ export default function App() {
   const momentumSetups    = screenerData?.momentum_setups || [];
   const momentumConfirmed = momentumSetups.filter(s => s.momentum_confirmed);
   const breakoutStocks    = screenerData?.breakout_stocks || qualifiedStocks.filter(s => s.breakout_5m);
+  const gapStocks         = screenerData?.gap_stocks || [];
 
-  const displayedStocks = activeTab === 'SETUP'    ? momentumSetups
-                        : activeTab === 'MOMENTUM' ? momentumConfirmed
-                        : activeTab === 'BREAKOUT' ? breakoutStocks
+  const displayedStocks = activeTab === 'SETUP'      ? momentumSetups
+                        : activeTab === 'MOMENTUM'   ? momentumConfirmed
+                        : activeTab === 'BREAKOUT'   ? breakoutStocks
+                        : activeTab === 'GAP_STOCKS' ? gapStocks
                         : qualifiedStocks;
 
   const handleExportCSV = () => {
@@ -120,8 +122,8 @@ export default function App() {
       {/* Loading Skeleton */}
       {loading && !screenerData && (
         <div style={{ marginBottom: '24px' }}>
-          <div className="grid grid-5" style={{ marginBottom: '24px' }}>
-            {[...Array(5)].map((_, i) => (
+          <div className="grid grid-5" style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(6, 1fr)' }}>
+            {[...Array(6)].map((_, i) => (
               <div key={i} className="glass-card kpi-card skeleton" style={{ height: '90px' }} />
             ))}
           </div>
@@ -131,7 +133,7 @@ export default function App() {
 
       {/* KPI Stats Grid */}
       {(!loading || screenerData) && (
-        <div className="grid grid-5" style={{ marginBottom: '24px' }}>
+        <div className="grid grid-5" style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(6, 1fr)' }}>
           <div className="glass-card kpi-card">
             <div className="kpi-title">Nifty 500 Scanned</div>
             <div className="kpi-value mono" style={{ color: 'var(--accent-cyan)' }}>
@@ -172,6 +174,15 @@ export default function App() {
             </div>
             <div className="kpi-subtitle" style={{ color: '#a78bfa' }}>5m Close &gt; Prev Day High</div>
           </div>
+
+          <div className="glass-card kpi-card" style={{ borderLeft: '4px solid #ec4899', background: 'rgba(236, 72, 153, 0.06)', cursor: 'pointer' }}
+            onClick={() => setActiveTab('GAP_STOCKS')}>
+            <div className="kpi-title" style={{ color: '#ec4899' }}>⚡ Gap Up / Down</div>
+            <div className="kpi-value mono" style={{ color: '#ec4899' }}>
+              {gapStocks.length}
+            </div>
+            <div className="kpi-subtitle" style={{ color: '#ec4899' }}>Open &gt; High or &lt; Low</div>
+          </div>
         </div>
       )}
 
@@ -184,6 +195,7 @@ export default function App() {
         setupCount={momentumSetups.length}
         momCount={momentumConfirmed.length}
         breakoutCount={breakoutStocks.length}
+        gapCount={gapStocks.length}
         onSelectStock={setSelectedStock}
       />
 

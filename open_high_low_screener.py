@@ -235,6 +235,7 @@ def fetch_all_stocks_parallel(tickers):
 def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
     results    = []
     breakouts  = []   # 5m close > prev day high, regardless of open=low/high
+    gap_stocks = []   # Gap Up (Open > Prev High) or Gap Down (Open < Prev Low)
     scan_time  = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     for ticker, data in stock_dict.items():
@@ -252,33 +253,122 @@ def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
         if day_open <= 0:
             continue
 
-        # ── Pure Breakout/Breakdown: 5-min close beyond previous day's High/Low (no open=low/high required) ──
+        # ── 1. Gap Up / Gap Down Detection ──────────────────────────────────
+        # Gap Up: Open > Prev Day High | Gap Down: Open < Prev Day Low
+        is_gap_up   = (prev_day_high > 0) and (day_open > prev_day_high)
+        is_gap_down = (prev_day_low > 0) and (day_open < prev_day_low)
+        
+        if is_gap_up or is_gap_down:
+            if is_gap_up:
+                gap_type = "GAP_UP"
+                gap_signal = "GAP UP (Open > Prev High)"
+                stoploss = round(prev_day_high * 0.997, 2)
+                risk_amt = max(round(entry_price - stoploss, 2), round(entry_price * 0.005, 2))
+                target_1 = round(entry_price + (risk_amt * 1.5), 2)
+                target_2 = round(entry_price + (risk_amt * 2.5), 2)
+                pnl_pct = round(((latest_close - entry_price) / entry_price) * 100, 2)
+                gap_pct = round(((day_open - prev_day_high) / prev_day_high) * 100, 2)
+            else:
+                gap_type = "GAP_DOWN"
+                gap_signal = "GAP DOWN (Open < Prev Low)"
+                stoploss = round(prev_day_low * 1.003, 2)
+                risk_amt = max(round(stoploss - entry_price, 2), round(entry_price * 0.005, 2))
+                target_1 = round(entry_price - (risk_amt * 1.5), 2)
+                target_2 = round(entry_price - (risk_amt * 2.5), 2)
+                pnl_pct = round(((entry_price - latest_close) / entry_price) * 100, 2)
+                gap_pct = round(((prev_day_low - day_open) / prev_day_low) * 100, 2)
+
+            vwap = round((day_high + day_low + latest_close) / 3, 2)
+            above_vwap = latest_close >= vwap
+
+            gap_stocks.append({
+                "ticker": ticker,
+                "setup_type": gap_type,
+                "signal": gap_signal,
+                "gap_type": gap_type,
+                "open": day_open,
+                "high": day_high,
+                "low": day_low,
+                "entry_price": entry_price,
+                "entry_move_pct": round(((entry_price - day_open) / day_open) * 100, 2),
+                "ltp": latest_close,
+                "pnl_pct": pnl_pct,
+                "risk_per_share": risk_amt,
+                "change_pct": chg_pct,
+                "diff_from_open_pct": round(abs(day_open - (day_low if is_gap_up else day_high)) / day_open * 100, 3),
+                "volume": day_volume,
+                "vol_surge": vol_surge,
+                "vwap": vwap,
+                "above_vwap": above_vwap,
+                "stoploss": stoploss,
+                "target_1": target_1,
+                "target_2": target_2,
+                "exact_match": False,
+                "momentum_confirmed": True,
+                "prev_day_high": round(prev_day_high, 2),
+                "prev_day_low": round(prev_day_low, 2),
+                "gap_pct": gap_pct
+            })
+            # Separate gap stocks totally from standard setup & breakout lists
+            continue
+
+        # ── 2. Pure Breakout/Breakdown: 5-min close beyond previous day's High/Low ──
         if prev_day_high > 0 and entry_price > prev_day_high:
+            stoploss = round(prev_day_high * 0.997, 2)
+            risk_amt = max(round(entry_price - stoploss, 2), round(entry_price * 0.005, 2))
+            target_1 = round(entry_price + (risk_amt * 1.5), 2)
+            target_2 = round(entry_price + (risk_amt * 2.5), 2)
+            pnl_pct = round(((latest_close - entry_price) / entry_price) * 100, 2)
             breakouts.append({
                 "ticker":         ticker,
+                "setup_type":     "BULLISH_BREAKOUT",
                 "breakout_type":  "BULLISH",
                 "signal":         "BULLISH BREAKOUT (5m > Prev High)",
+                "open":           day_open,
+                "high":           day_high,
+                "low":            day_low,
                 "entry_price":    round(entry_price, 2),
                 "ltp":            round(latest_close, 2),
+                "pnl_pct":        pnl_pct,
+                "risk_per_share": risk_amt,
+                "stoploss":       stoploss,
+                "target_1":       target_1,
+                "target_2":       target_2,
+                "exact_match":    False,
+                "momentum_confirmed": True,
                 "prev_day_high":  round(prev_day_high, 2),
                 "prev_day_low":   round(prev_day_low, 2),
                 "change_pct":     chg_pct,
                 "vol_surge":      vol_surge,
-                "open":           day_open,
                 "breakout_gap":   round((entry_price - prev_day_high) / prev_day_high * 100, 2),
             })
         elif prev_day_low > 0 and entry_price < prev_day_low:
+            stoploss = round(prev_day_low * 1.003, 2)
+            risk_amt = max(round(stoploss - entry_price, 2), round(entry_price * 0.005, 2))
+            target_1 = round(entry_price - (risk_amt * 1.5), 2)
+            target_2 = round(entry_price - (risk_amt * 2.5), 2)
+            pnl_pct = round(((entry_price - latest_close) / entry_price) * 100, 2)
             breakouts.append({
                 "ticker":         ticker,
+                "setup_type":     "BEARISH_BREAKDOWN",
                 "breakout_type":  "BEARISH",
                 "signal":         "BEARISH BREAKDOWN (5m < Prev Low)",
+                "open":           day_open,
+                "high":           day_high,
+                "low":            day_low,
                 "entry_price":    round(entry_price, 2),
                 "ltp":            round(latest_close, 2),
+                "pnl_pct":        pnl_pct,
+                "risk_per_share": risk_amt,
+                "stoploss":       stoploss,
+                "target_1":       target_1,
+                "target_2":       target_2,
+                "exact_match":    False,
+                "momentum_confirmed": True,
                 "prev_day_high":  round(prev_day_high, 2),
                 "prev_day_low":   round(prev_day_low, 2),
                 "change_pct":     chg_pct,
                 "vol_surge":      vol_surge,
-                "open":           day_open,
                 "breakout_gap":   round((prev_day_low - entry_price) / prev_day_low * 100, 2),
             })
             
@@ -352,6 +442,7 @@ def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
         })
         
     breakouts.sort(key=lambda x: (x["breakout_gap"], x["vol_surge"]), reverse=True)
+    gap_stocks.sort(key=lambda x: (x["change_pct"], x["vol_surge"]), reverse=True)
     open_low_stocks  = [r for r in results if r["setup_type"] == "OPEN_LOW"]
     open_high_stocks = [r for r in results if r["setup_type"] == "OPEN_HIGH"]
     momentum_stocks  = [r for r in results if r["momentum_confirmed"]]
@@ -367,10 +458,12 @@ def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
         "open_high_count":  len(open_high_stocks),
         "momentum_count":   len(momentum_stocks),
         "breakout_count":   len(breakouts),
+        "gap_count":        len(gap_stocks),
         "open_low_stocks":  open_low_stocks,
         "open_high_stocks": open_high_stocks,
         "momentum_stocks":  momentum_stocks,
         "breakout_stocks":  breakouts,
+        "gap_stocks":       gap_stocks,
         "all_matches":      open_low_stocks + open_high_stocks
     }
 

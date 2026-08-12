@@ -371,6 +371,13 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
                     breakout_5m  = entry_5m > prev_day_high
                     breakout_gap = round((entry_5m - prev_day_high) / prev_day_high * 100, 2)
 
+                # Gap Up / Gap Down Detection
+                gap_type = None
+                if prev_day_high and day_open_val > prev_day_high:
+                    gap_type = "GAP_UP"
+                elif prev_day_low and day_open_val < prev_day_low:
+                    gap_type = "GAP_DOWN"
+
                 # Official Open=Low difference check (matches Zerodha / TradingView 100%)
                 ol_diff = abs(official_open - official_low) / official_open * 100
                 if ol_diff <= tolerance_pct:
@@ -383,8 +390,24 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
                     target_2    = round(entry_5m + risk_amt * 2.5, 2)
                     if prev_day_high:
                         momentum_confirmed = entry_5m > prev_day_high
+                elif breakout_5m or gap_type:
+                    # Calculate stoploss and targets for breakout/gap stocks if setup_type is not OPEN_LOW
+                    if (gap_type == "GAP_UP" or breakout_5m) and prev_day_high:
+                        sl = round(prev_day_high * 0.997, 2)
+                        risk_amt = max(round(entry_5m - sl, 2), round(entry_5m * 0.005, 2))
+                        stoploss = sl
+                        target_1 = round(entry_5m + risk_amt * 1.5, 2)
+                        target_2 = round(entry_5m + risk_amt * 2.5, 2)
+                    elif gap_type == "GAP_DOWN" and prev_day_low:
+                        sl = round(prev_day_low * 1.003, 2)
+                        risk_amt = max(round(sl - entry_5m, 2), round(entry_5m * 0.005, 2))
+                        stoploss = sl
+                        target_1 = round(entry_5m - risk_amt * 1.5, 2)
+                        target_2 = round(entry_5m - risk_amt * 2.5, 2)
 
-    signal = ("BULL STACK + OPEN=LOW 🔥" if setup_type == 'OPEN_LOW' and momentum_confirmed
+    signal = ("BULL STACK + GAP UP ⚡" if gap_type == 'GAP_UP'
+              else "BULL STACK + GAP DOWN ⚡" if gap_type == 'GAP_DOWN'
+              else "BULL STACK + OPEN=LOW 🔥" if setup_type == 'OPEN_LOW' and momentum_confirmed
               else "BULL STACK + OPEN=LOW" if setup_type == 'OPEN_LOW'
               else "BULL STACK + BREAKOUT 🚀" if breakout_5m
               else "MA BULL STACK")
@@ -407,7 +430,8 @@ def fetch_single_stock_full(ticker, session, tolerance_pct=0.20, st_period=10, s
         "ma_distance_pct":     ma_distance,
         "above_weekly_st":     True,
         "ma_stack_aligned":    True,
-        "setup_type":          setup_type,
+        "setup_type":          gap_type or setup_type,
+        "gap_type":            gap_type,
         "entry_price":         entry_price,
         "stoploss":            stoploss,
         "target_1":            target_1,
@@ -457,14 +481,18 @@ def run_nifty500_scan(tickers=None, tolerance_pct=0.20, st_period=10, st_mult=3)
 
     print(f"[✓] Done. Qualified: {len(qualified)} / {len(tickers)}")
 
-    momentum_setups = [s for s in qualified if s['setup_type'] is not None]
-    pure_st         = [s for s in qualified if s['setup_type'] is None]
-    breakout_stocks = [s for s in qualified if s.get('breakout_5m')]
+    gap_stocks      = [s for s in qualified if s.get('gap_type') is not None]
+    non_gap         = [s for s in qualified if s.get('gap_type') is None]
+    
+    momentum_setups = [s for s in non_gap if s['setup_type'] is not None]
+    pure_st         = [s for s in non_gap if s['setup_type'] is None]
+    breakout_stocks = [s for s in non_gap if s.get('breakout_5m')]
 
     momentum_setups.sort(key=lambda x: (x['change_pct'], x['momentum_confirmed'], x['vol_surge']), reverse=True)
     pure_st.sort(key=lambda x: x['change_pct'], reverse=True)
     breakout_stocks.sort(key=lambda x: (x.get('breakout_gap') or 0, x['vol_surge']), reverse=True)
-    all_qualified = sorted(qualified, key=lambda x: x['change_pct'], reverse=True)
+    gap_stocks.sort(key=lambda x: x['change_pct'], reverse=True)
+    all_qualified = sorted(non_gap, key=lambda x: x['change_pct'], reverse=True)
 
     scan_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     results = {
@@ -472,13 +500,15 @@ def run_nifty500_scan(tickers=None, tolerance_pct=0.20, st_period=10, st_mult=3)
         "total_scanned":            len(tickers),
         "st_period":                st_period,
         "st_multiplier":            st_mult,
-        "qualified_count":          len(qualified),
+        "qualified_count":          len(all_qualified),
         "momentum_setup_count":     len(momentum_setups),
         "momentum_confirmed_count": len([s for s in momentum_setups if s['momentum_confirmed']]),
         "breakout_count":           len(breakout_stocks),
+        "gap_count":                len(gap_stocks),
         "qualified_stocks":         all_qualified,
         "momentum_setups":          momentum_setups,
         "breakout_stocks":          breakout_stocks,
+        "gap_stocks":               gap_stocks,
     }
 
     # Write to root (timestamped + always a 'latest' copy)
