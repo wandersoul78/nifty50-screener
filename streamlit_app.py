@@ -12,8 +12,8 @@ import datetime
 import pandas as pd
 import streamlit as st
 
-from open_high_low_screener import NIFTY_FO_STOCKS, fetch_all_stocks_parallel, analyze_open_high_low
-from nifty500_screener import NIFTY500_STOCKS, run_nifty500_scan
+from open_high_low_screener import get_fno_universe_cached, fetch_all_stocks_parallel, analyze_open_high_low
+from nifty500_screener import get_nifty500_universe_cached, run_nifty500_scan
 
 # Page Configuration
 st.set_page_config(
@@ -92,11 +92,11 @@ if app_mode == "📈 Nifty F&O Open = Low/High Intraday":
 
     @st.cache_data(ttl=60)
     def get_market_scan_data(tol_val):
-        stock_dict = fetch_all_stocks_parallel(NIFTY_FO_STOCKS) or {}
+        stock_dict = fetch_all_stocks_parallel(get_fno_universe_cached()) or {}
         results = analyze_open_high_low(stock_dict, tolerance_pct=tol_val)
         return results
 
-    with st.spinner("Fetching 215+ Nifty F&O 5-minute stock candles..."):
+    with st.spinner("Fetching 250 Nifty F&O 5-minute stock candles..."):
         scan_results = get_market_scan_data(tolerance)
 
     raw_stocks = scan_results.get("all_matches", [])
