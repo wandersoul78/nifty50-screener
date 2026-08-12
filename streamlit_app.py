@@ -379,6 +379,13 @@ else:
         else:
             st.warning("No momentum-confirmed Open=Low setups yet.")
 
+    with tab_break:
+        if breakout_stocks:
+            st.info("🚀 **5m Breakout**: MA Bull Stack qualified stocks whose **5-min close is above previous day's High** (no Open=Low setup required).")
+            st.dataframe(fmt_500(breakout_stocks, intraday=True), use_container_width=True, height=500)
+        else:
+            st.info("No 5-min breakout stocks detected.")
+
     if qualified:
         csv = pd.DataFrame(qualified).to_csv(index=False).encode("utf-8")
         st.download_button(
