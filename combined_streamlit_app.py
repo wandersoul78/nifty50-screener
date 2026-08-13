@@ -1,14 +1,13 @@
 """
-Combined Nifty F&O Stock, Nifty Options & Bank Nifty Options Web Dashboard (Streamlit Cloud Entrypoint)
-========================================================================================================
+Combined Nifty F&O Stock, Nifty Options & Bank Nifty Options Web Dashboard
+========================================================================
 Features:
-1. Streamlit Cloud Main App File (`streamlit_app.py`).
-2. 3 Screener Modes:
+1. Minimalist Sidebar Navigation with 3 modes:
    - 📈 Nifty F&O Stocks (Open = Low / High)
    - ⚡ Nifty 50 Options
    - 🏦 Bank Nifty Options
-3. Options pages contain controls directly on page (Expiry Selector & Strike Range).
-4. Option Chain Matrix Table with separate High & Low columns.
+2. Options pages contain controls directly on page (Expiry Selector & Strike Range).
+3. Option Chain Matrix Table with separate High & Low columns.
 """
 
 import sys
@@ -19,7 +18,7 @@ import datetime
 import pandas as pd
 import streamlit as st
 
-from combined_screener import run_combined_screener
+from combined_open_high_low_screener import run_combined_screener
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding='utf-8')
