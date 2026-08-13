@@ -1,11 +1,12 @@
 """
-Combined Nifty F&O Stock, Nifty Options & Bank Nifty Options Pure Screener
+Combined Nifty F&O Stock, Nifty Options, Bank Nifty Options & Top Stock Options Pure Screener
 ========================================================================
 Features:
 1. Pure Yahoo Finance 5-Minute Post-Open Entry Engine for F&O Stock Universe (250 stocks).
 2. Live NSE Options Engine for Nifty 50 Options (index=nse50_opt, step=50).
 3. Live NSE Options Engine for Bank Nifty Options (index=nifty_bank_opt, step=100).
-4. Dynamic Expiry Selector & Output saved to combined_screener_data.json.
+4. Live NSE Engine for Top Traded Stock Options (index=stock_opt).
+5. Dynamic Expiry Selector & Output saved to combined_screener_data.json.
 """
 
 import sys
@@ -174,7 +175,7 @@ def analyze_stock_open_high_low(stock, tolerance_pct=0.20):
         exact_match = (diff_low_pts == 0)
     elif diff_high_pct <= tolerance_pct:
         setup_type = "OPEN_HIGH"
-        exact_match = (diff_high_pts == 0)
+        exact_match = (diff_high_pct == 0)
 
     if not setup_type:
         return None
@@ -224,6 +225,7 @@ def fetch_nse_index_options(index_code="nse50_opt"):
     Fetches live options data from NSE API for index_code:
     - 'nse50_opt' -> Nifty 50 Options
     - 'nifty_bank_opt' -> Bank Nifty Options
+    - 'stock_opt' -> Top Active Stock Options
     """
     session = requests.Session()
     session.headers.update({
@@ -353,17 +355,91 @@ def process_index_options(raw_opt, target_underlying="NIFTY", strike_step=50, nu
     }
 
 
+def process_top_stock_options(raw_stock_opt, max_tick_diff=0.50):
+    """Processes Top Active Stock Options from NSE index=stock_opt API."""
+    stock_opt_matches = []
+    all_stock_contracts = []
+
+    if not raw_stock_opt or 'data' not in raw_stock_opt:
+        return {
+            'matches': stock_opt_matches,
+            'all_contracts': all_stock_contracts
+        }
+
+    items = raw_stock_opt['data']
+
+    for c in items:
+        underlying = c.get('underlying', '')
+        opt_type = "CE" if c.get('optionType') in ["Call", "CE"] else ("PE" if c.get('optionType') in ["Put", "PE"] else c.get('optionType'))
+        strike = c.get('strikePrice', 0)
+        expiry = c.get('expiryDate', '')
+
+        op = float(c.get('openPrice', 0.0))
+        hi = float(c.get('highPrice', 0.0))
+        lo = float(c.get('lowPrice', 0.0))
+        ltp = float(c.get('lastPrice', 0.0))
+        spot = float(c.get('underlyingValue', 0.0))
+        change_pct = float(c.get('pChange', 0.0))
+        oi = int(c.get('openInterest', 0))
+        vol = int(c.get('volume', 0))
+        trades = int(c.get('noOfTrades', 0))
+
+        if op == 0 or ltp == 0:
+            continue
+
+        low_diff_pts = abs(op - lo)
+        high_diff_pts = abs(hi - op)
+
+        setup = None
+        signal = None
+
+        if low_diff_pts <= max_tick_diff:
+            setup = "OPEN=LOW"
+            signal = "BULLISH"
+        elif high_diff_pts <= max_tick_diff:
+            setup = "OPEN=HIGH"
+            signal = "BEARISH"
+
+        contract_info = {
+            'symbol': f"{underlying} {strike} {opt_type}",
+            'underlying': underlying,
+            'spot_price': spot,
+            'strike': strike,
+            'option_type': opt_type,
+            'expiry': expiry,
+            'signal': signal if signal else "NEUTRAL",
+            'setup': setup if setup else "NONE",
+            'open': op,
+            'high': hi,
+            'low': lo,
+            'ltp': ltp,
+            'change_pct': change_pct,
+            'open_interest': oi,
+            'volume': vol,
+            'no_of_trades': trades
+        }
+
+        all_stock_contracts.append(contract_info)
+        if setup:
+            stock_opt_matches.append(contract_info)
+
+    return {
+        'matches': stock_opt_matches,
+        'all_contracts': all_stock_contracts
+    }
+
+
 def run_combined_screener(num_strikes=6, stock_tolerance=0.20, option_max_tick=0.50, nifty_expiry=None, banknifty_expiry=None):
     """
-    Runs parallel scan for Stocks, Nifty Options, and Bank Nifty Options.
+    Runs parallel scan for Stocks, Nifty Options, Bank Nifty Options, and Top Active Stock Options.
     """
-    print("=" * 80)
-    print(" 🚀 COMBINED STOCKS, NIFTY OPTIONS & BANK NIFTY OPTIONS SCREENER")
+    print("=" * 85)
+    print(" 🚀 COMBINED STOCKS, INDEX OPTIONS & TOP STOCK OPTIONS SCREENER")
     print(f" Timestamp: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S IST')}")
-    print("=" * 80)
+    print("=" * 85)
 
     # ── 1. SCAN F&O STOCKS ──
-    print("\n[1/3] Scanning Nifty F&O Stock Universe (250 stocks)...")
+    print("\n[1/4] Scanning Nifty F&O Stock Universe (250 stocks)...")
     stocks = _NIFTY_FO_FALLBACK
     stock_matches = []
     
@@ -379,7 +455,7 @@ def run_combined_screener(num_strikes=6, stock_tolerance=0.20, option_max_tick=0
     print(f"      [✓] Scanned {len(stocks)} F&O stocks -> Found {len(stock_matches)} matching stock setups.")
 
     # ── 2. SCAN NIFTY 50 OPTIONS ──
-    print("\n[2/3] Scanning live Nifty 50 Options (nse50_opt)...")
+    print("\n[2/4] Scanning live Nifty 50 Options (nse50_opt)...")
     raw_nifty_opt = fetch_nse_index_options("nse50_opt")
     nifty_res = process_index_options(
         raw_nifty_opt, 
@@ -393,7 +469,7 @@ def run_combined_screener(num_strikes=6, stock_tolerance=0.20, option_max_tick=0
     print(f"      [✓] Found {len(nifty_res['opt_matches'])} matching Nifty option setups.")
 
     # ── 3. SCAN BANK NIFTY OPTIONS ──
-    print("\n[3/3] Scanning live Bank Nifty Options (nifty_bank_opt)...")
+    print("\n[3/4] Scanning live Bank Nifty Options (nifty_bank_opt)...")
     raw_bank_opt = fetch_nse_index_options("nifty_bank_opt")
     bank_res = process_index_options(
         raw_bank_opt, 
@@ -406,12 +482,19 @@ def run_combined_screener(num_strikes=6, stock_tolerance=0.20, option_max_tick=0
     print(f"      [✓] Bank Nifty Spot: {bank_res['spot_price']:,.2f} | ATM: {bank_res['atm_strike']} | Expiry: {bank_res['active_expiry']}")
     print(f"      [✓] Found {len(bank_res['opt_matches'])} matching Bank Nifty option setups.")
 
+    # ── 4. SCAN TOP ACTIVE STOCK OPTIONS ──
+    print("\n[4/4] Scanning live Top Active Stock Options (stock_opt)...")
+    raw_stock_opt = fetch_nse_index_options("stock_opt")
+    stock_opt_res = process_top_stock_options(raw_stock_opt, max_tick_diff=option_max_tick)
+    print(f"      [✓] Fetched {len(stock_opt_res['all_contracts'])} top stock options contracts -> Found {len(stock_opt_res['matches'])} matching setups.")
+
     output_payload = {
         'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'stock_matches_count': len(stock_matches),
         'stock_matches': stock_matches,
         'nifty_options': nifty_res,
-        'banknifty_options': bank_res
+        'banknifty_options': bank_res,
+        'top_stock_options': stock_opt_res
     }
 
     json_path = "combined_screener_data.json"

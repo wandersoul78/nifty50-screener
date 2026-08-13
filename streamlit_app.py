@@ -1,12 +1,13 @@
 """
-Combined Nifty F&O Stock, Nifty Options & Bank Nifty Options Web Dashboard (Streamlit Cloud Entrypoint)
-========================================================================================================
+Combined Nifty F&O Stock, Nifty Options, Bank Nifty Options & Top Stock Options Web Dashboard
+==============================================================================================
 Features:
 1. Streamlit Cloud Main App File (`streamlit_app.py`).
-2. 3 Screener Modes:
+2. 4 Screener Modes:
    - 📈 Nifty F&O Stocks (Open = Low / High)
    - ⚡ Nifty 50 Options
    - 🏦 Bank Nifty Options
+   - 🔥 Top Traded Stock Options
 3. Options pages contain controls directly on page (Expiry Selector & Strike Range).
 4. Option Chain Matrix Table with separate High & Low columns.
 """
@@ -216,14 +217,15 @@ def render_options_page(title, subtitle, opt_data, index_name="NIFTY"):
 
 
 def main():
-    # ── SIDEBAR NAVIGATION (3 MODES) ──
+    # ── SIDEBAR NAVIGATION (4 MODES) ──
     st.sidebar.title("🎯 Screener Navigation")
     screener_mode = st.sidebar.radio(
         "Select Active Screener:",
         [
             "📈 Nifty F&O Stocks (Open = Low / High)",
             "⚡ Nifty 50 Options",
-            "🏦 Bank Nifty Options"
+            "🏦 Bank Nifty Options",
+            "🔥 Top Traded Stock Options"
         ],
         index=0
     )
@@ -366,6 +368,81 @@ def main():
             opt_data=bank_data,
             index_name="BANKNIFTY"
         )
+
+    # =========================================================================
+    # PAGE 4: TOP TRADED STOCK OPTIONS SCREENER
+    # =========================================================================
+    elif screener_mode == "🔥 Top Traded Stock Options":
+        st.title("🔥 Top Traded Stock Options Screener")
+        st.caption("Live analytics for top liquid Stock Options (Call & Put) from NSE India.")
+
+        top_stock_data = data.get('top_stock_options', {})
+        stock_opt_matches = top_stock_data.get('matches', [])
+        all_stock_contracts = top_stock_data.get('all_contracts', [])
+
+        # Calculate metrics
+        total_contracts = len(all_stock_contracts)
+        max_gainer = "-"
+        if all_stock_contracts:
+            top_c = max(all_stock_contracts, key=lambda x: x.get('change_pct', 0.0))
+            max_gainer = f"{top_c['symbol']} ({top_c['change_pct']:+.2f}%)"
+
+        # Metric Cards
+        m1, m2, m3, m4 = st.columns(4)
+        with m1:
+            st.metric("Total Active Stock Contracts", f"{total_contracts}")
+        with m2:
+            st.metric("Top Premium Gainer", f"{max_gainer}")
+        with m3:
+            st.metric("Matching Setup Contracts", f"{len(stock_opt_matches)}")
+        with m4:
+            st.metric("Last Updated", f"{timestamp.split()[-1] if ' ' in timestamp else timestamp}")
+
+        st.markdown("---")
+
+        # ── SECTION 1: MATCHING SETUP STOCK OPTION CARDS ──
+        st.markdown("### 🎯 Matching Open = Low & Open = High Stock Option Cards")
+        if stock_opt_matches:
+            card_cols = st.columns(3)
+            for idx, opt in enumerate(stock_opt_matches):
+                col = card_cols[idx % 3]
+                is_bullish = opt['signal'] == 'BULLISH'
+                badge_class = "bullish-badge" if is_bullish else "bearish-badge"
+                chg_color = "#4ade80" if opt.get('change_pct', 0) >= 0 else "#f87171"
+
+                with col:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; font-size: 1.25rem;">{opt['symbol']}</h3>
+                            <span class="{badge_class}">{opt['setup']}</span>
+                        </div>
+                        <p style="color: #94a3b8; font-size: 0.85rem; margin: 4px 0 12px 0;">
+                            Stock Spot: <b>₹{opt['spot_price']:,.2f}</b> | Expiry: <b>{opt['expiry']}</b>
+                        </p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9rem;">
+                            <div>LTP: <b style="font-size: 1.1rem; color: #38bdf8;">₹{opt['ltp']:.2f}</b></div>
+                            <div>Change: <b style="color: {chg_color};">{opt['change_pct']:+.2f}%</b></div>
+                            <div>Open: <b>₹{opt['open']:.2f}</b></div>
+                            <div>High: <b>₹{opt['high']:.2f}</b></div>
+                            <div>Low: <b>₹{opt['low']:.2f}</b></div>
+                            <div>Open Interest: <b>{opt['open_interest']:,}</b></div>
+                            <div>Volume: <b>{opt['volume']:,}</b></div>
+                            <div>No of Trades: <b>{opt['no_of_trades']:,}</b></div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+        else:
+            st.info("ℹ️ No exact Open=Low or Open=High stock option setups matching tolerance rules at this moment.")
+
+        st.markdown("---")
+
+        # ── SECTION 2: TOP TRADED STOCK OPTIONS TABLE ──
+        st.markdown("### 📊 Top Traded Stock Options Table")
+        if all_stock_contracts:
+            df_stk_opt = pd.DataFrame(all_stock_contracts)
+            cols = ['symbol', 'underlying', 'spot_price', 'strike', 'option_type', 'expiry', 'setup', 'open', 'high', 'low', 'ltp', 'change_pct', 'open_interest', 'volume', 'no_of_trades']
+            st.dataframe(df_stk_opt[cols], use_container_width=True)
 
 
 if __name__ == "__main__":
