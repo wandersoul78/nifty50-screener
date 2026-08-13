@@ -237,10 +237,8 @@ def main():
     st.sidebar.markdown("---")
     run_scan_btn = st.sidebar.button("🔄 Refresh Live Scanner Data", use_container_width=True)
 
-    # Initial data load
-    data = st.session_state.get("combined_data") or load_local_json_data() or {}
-    
-    if "combined_data" not in st.session_state or run_scan_btn:
+    # Initial data load from fresh JSON on disk if present
+    if run_scan_btn:
         with st.spinner("Scanning live market data..."):
             nifty_exp = st.session_state.get("NIFTY_opt_expiry")
             bank_exp = st.session_state.get("BANKNIFTY_opt_expiry")
@@ -250,6 +248,9 @@ def main():
                 banknifty_expiry=bank_exp
             )
             data = st.session_state.combined_data
+    else:
+        data = load_local_json_data() or st.session_state.get("combined_data") or {}
+        st.session_state.combined_data = data
 
     if not data:
         st.error("Failed to load screener data. Click 'Refresh Live Scanner Data' to run the scanner.")
