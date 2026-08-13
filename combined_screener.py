@@ -171,12 +171,20 @@ def analyze_stock_open_high_low(stock, tolerance_pct=0.00):
     exact_match = False
     
     # 100% Exact Open = Low and Open = High check for Stocks
-    if diff_low_pct <= tolerance_pct:
-        setup_type = "OPEN_LOW"
-        exact_match = (diff_low_pts == 0)
-    elif diff_high_pct <= tolerance_pct:
-        setup_type = "OPEN_HIGH"
-        exact_match = (diff_high_pts == 0)
+    if tolerance_pct == 0.00:
+        if round(op, 2) == round(lo, 2):
+            setup_type = "OPEN_LOW"
+            exact_match = True
+        elif round(op, 2) == round(hi, 2):
+            setup_type = "OPEN_HIGH"
+            exact_match = True
+    else:
+        if diff_low_pct <= tolerance_pct:
+            setup_type = "OPEN_LOW"
+            exact_match = (round(op, 2) == round(lo, 2))
+        elif diff_high_pct <= tolerance_pct:
+            setup_type = "OPEN_HIGH"
+            exact_match = (round(op, 2) == round(hi, 2))
 
     if not setup_type:
         return None

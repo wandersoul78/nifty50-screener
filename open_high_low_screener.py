@@ -373,10 +373,14 @@ def analyze_open_high_low(stock_dict, tolerance_pct=0.00):
             })
             
         open_low_diff_pct = abs(day_open - day_low) / day_open * 100
-        is_open_low = open_low_diff_pct <= tolerance_pct
-        
         open_high_diff_pct = abs(day_open - day_high) / day_open * 100
-        is_open_high = open_high_diff_pct <= tolerance_pct
+        
+        if tolerance_pct == 0.00:
+            is_open_low = (round(day_open, 2) == round(day_low, 2))
+            is_open_high = (round(day_open, 2) == round(day_high, 2))
+        else:
+            is_open_low = open_low_diff_pct <= tolerance_pct
+            is_open_high = open_high_diff_pct <= tolerance_pct
         
         if not (is_open_low or is_open_high):
             continue
