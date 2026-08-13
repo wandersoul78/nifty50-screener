@@ -247,8 +247,8 @@ def fetch_nse_index_options(index_code="nse50_opt"):
     return None
 
 
-def process_index_options(raw_opt, target_underlying="NIFTY", strike_step=50, num_strikes=6, option_max_tick=0.50, selected_expiry=None):
-    """Processes option chain data for a specific index (NIFTY or BANKNIFTY)."""
+def process_index_options(raw_opt, target_underlying="NIFTY", strike_step=50, num_strikes=6, option_max_tick=0.00, selected_expiry=None):
+    """Processes option chain data for a specific index (NIFTY or BANKNIFTY) with 100% exact Open=Low / Open=High logic."""
     opt_matches = []
     opt_matrix = []
     available_expiries = []
@@ -313,6 +313,7 @@ def process_index_options(raw_opt, target_underlying="NIFTY", strike_step=50, nu
                 setup = None
                 signal_type = None
 
+                # Exact Open = Low and Open = High check for Index Options
                 if low_diff_pts <= option_max_tick:
                     setup = "OPEN=LOW"
                     signal_type = "BULLISH"
@@ -429,7 +430,7 @@ def process_top_stock_options(raw_stock_opt, max_tick_diff=0.50):
     }
 
 
-def run_combined_screener(num_strikes=6, stock_tolerance=0.20, option_max_tick=0.50, nifty_expiry=None, banknifty_expiry=None):
+def run_combined_screener(num_strikes=6, stock_tolerance=0.20, option_max_tick=0.00, nifty_expiry=None, banknifty_expiry=None):
     """
     Runs parallel scan for Stocks, Nifty Options, Bank Nifty Options, and Top Active Stock Options.
     """
