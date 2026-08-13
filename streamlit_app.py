@@ -4,10 +4,10 @@ Combined Nifty F&O Stock, Nifty Options, Bank Nifty Options & Top Stock Options 
 Features:
 1. Streamlit Cloud Main App File (`streamlit_app.py`).
 2. 4 Screener Modes:
-   - 📈 Nifty F&O Stocks (Open = Low / High)
-   - ⚡ Nifty 50 Options
-   - 🏦 Bank Nifty Options
-   - 🔥 Top Traded Stock Options
+   - 📈 Nifty F&O Stocks (Open = Low / High) [Top 6 cards by Change %]
+   - ⚡ Nifty 50 Options [Top 6 cards by Volume]
+   - 🏦 Bank Nifty Options [Top 6 cards by Volume]
+   - 🔥 Top Traded Stock Options [Top 6 cards by Volume]
 3. Options pages contain controls directly on page (Expiry Selector & Strike Range).
 4. Option Chain Matrix Table with separate High & Low columns.
 """
@@ -148,12 +148,16 @@ def render_options_page(title, subtitle, opt_data, index_name="NIFTY"):
 
     st.markdown("---")
 
-    # ── SECTION 1: MATCHING OPTION SETUP CARDS ──
-    st.markdown(f"### 🎯 Matching Open = Low & Open = High Option Cards ({current_expiry})")
+    # ── SECTION 1: TOP 6 HIGHEST VOLUME OPTION CARDS WITH SETUP ──
+    st.markdown(f"### 🎯 Top 6 Highest Volume Option Cards with Setup ({current_expiry})")
     
     if opt_matches:
+        # Sort option matches by Volume descending and take Top 6
+        sorted_opt_matches = sorted(opt_matches, key=lambda x: x.get('volume', 0), reverse=True)
+        top_6_opt = sorted_opt_matches[:6]
+
         card_cols = st.columns(3)
-        for idx, opt in enumerate(opt_matches):
+        for idx, opt in enumerate(top_6_opt):
             col = card_cols[idx % 3]
             is_bullish = opt['signal'] == 'BULLISH'
             badge_class = "bullish-badge" if is_bullish else "bearish-badge"
@@ -168,11 +172,11 @@ def render_options_page(title, subtitle, opt_data, index_name="NIFTY"):
                     <p style="color: #94a3b8; font-size: 0.85rem; margin: 4px 0 12px 0;">ATM Offset: <b>{opt['atm_offset']}</b> | Expiry: <b>{opt['expiry']}</b></p>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9rem;">
                         <div>LTP: <b style="font-size: 1.1rem; color: #38bdf8;">₹{opt['ltp']:.2f}</b></div>
+                        <div>Volume: <b style="color: #4ade80;">{opt['volume']:,}</b></div>
                         <div>Open: <b>₹{opt['open']:.2f}</b></div>
                         <div>High: <b>₹{opt['high']:.2f}</b></div>
                         <div>Low: <b>₹{opt['low']:.2f}</b></div>
                         <div>Open Interest: <b>{opt['open_interest']:,}</b></div>
-                        <div>Volume: <b>{opt['volume']:,}</b></div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -400,11 +404,15 @@ def main():
 
         st.markdown("---")
 
-        # ── SECTION 1: MATCHING SETUP STOCK OPTION CARDS ──
-        st.markdown("### 🎯 Matching Open = Low & Open = High Stock Option Cards")
+        # ── SECTION 1: TOP 6 HIGHEST VOLUME STOCK OPTION CARDS WITH SETUP ──
+        st.markdown("### 🎯 Top 6 Highest Volume Stock Option Cards with Setup")
         if stock_opt_matches:
+            # Sort stock option matches by Volume descending and take Top 6
+            sorted_stk_matches = sorted(stock_opt_matches, key=lambda x: x.get('volume', 0), reverse=True)
+            top_6_stk_opt = sorted_stk_matches[:6]
+
             card_cols = st.columns(3)
-            for idx, opt in enumerate(stock_opt_matches):
+            for idx, opt in enumerate(top_6_stk_opt):
                 col = card_cols[idx % 3]
                 is_bullish = opt['signal'] == 'BULLISH'
                 badge_class = "bullish-badge" if is_bullish else "bearish-badge"
@@ -426,8 +434,8 @@ def main():
                             <div>Open: <b>₹{opt['open']:.2f}</b></div>
                             <div>High: <b>₹{opt['high']:.2f}</b></div>
                             <div>Low: <b>₹{opt['low']:.2f}</b></div>
+                            <div>Volume: <b style="color: #4ade80;">{opt['volume']:,}</b></div>
                             <div>Open Interest: <b>{opt['open_interest']:,}</b></div>
-                            <div>Volume: <b>{opt['volume']:,}</b></div>
                             <div>No of Trades: <b>{opt['no_of_trades']:,}</b></div>
                         </div>
                     </div>
