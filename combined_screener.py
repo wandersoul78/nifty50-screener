@@ -149,8 +149,8 @@ def fetch_single_stock_5m(ticker):
         return None
 
 
-def analyze_stock_open_high_low(stock, tolerance_pct=0.20):
-    """Evaluates if stock meets Open=Low (Bullish) or Open=High (Bearish) setup."""
+def analyze_stock_open_high_low(stock, tolerance_pct=0.00):
+    """Evaluates if stock meets 100% exact Open=Low (Bullish) or Open=High (Bearish) setup."""
     op = stock['open']
     hi = stock['high']
     lo = stock['low']
@@ -170,12 +170,13 @@ def analyze_stock_open_high_low(stock, tolerance_pct=0.20):
     setup_type = None
     exact_match = False
     
+    # 100% Exact Open = Low and Open = High check for Stocks
     if diff_low_pct <= tolerance_pct:
         setup_type = "OPEN_LOW"
         exact_match = (diff_low_pts == 0)
     elif diff_high_pct <= tolerance_pct:
         setup_type = "OPEN_HIGH"
-        exact_match = (diff_high_pct == 0)
+        exact_match = (diff_high_pts == 0)
 
     if not setup_type:
         return None
@@ -430,7 +431,7 @@ def process_top_stock_options(raw_stock_opt, max_tick_diff=0.50):
     }
 
 
-def run_combined_screener(num_strikes=6, stock_tolerance=0.20, option_max_tick=0.00, nifty_expiry=None, banknifty_expiry=None):
+def run_combined_screener(num_strikes=6, stock_tolerance=0.00, option_max_tick=0.00, nifty_expiry=None, banknifty_expiry=None):
     """
     Runs parallel scan for Stocks, Nifty Options, Bank Nifty Options, and Top Active Stock Options.
     """
