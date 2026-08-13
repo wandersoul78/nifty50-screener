@@ -3,3 +3,4 @@ dist/
 __pycache__/
 *.pyc
 .env
+open_high_low_[0-9]*.csv

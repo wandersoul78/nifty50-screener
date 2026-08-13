@@ -8,8 +8,8 @@ import { ArrowUpRight, ArrowDownRight, Zap, RefreshCw, BarChart2, ShieldCheck, A
 export default function App() {
   const [screenerData, setScreenerData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [tolerance, setTolerance] = useState(0.20);
-  const [strictOnly, setStrictOnly] = useState(false);
+  const [tolerance, setTolerance] = useState(0.00);
+  const [strictOnly, setStrictOnly] = useState(true);
   const [selectedStock, setSelectedStock] = useState(null);
   const [activeTab, setActiveTab] = useState('ALL'); // ALL, BULLISH, BEARISH, MOMENTUM
 

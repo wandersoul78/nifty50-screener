@@ -232,7 +232,7 @@ def fetch_all_stocks_parallel(tickers):
     print(f"[✓] Successfully retrieved 5-min candles for {len(results)} stocks.")
     return results
 
-def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
+def analyze_open_high_low(stock_dict, tolerance_pct=0.00):
     results    = []
     breakouts  = []   # 5m close > prev day high, regardless of open=low/high
     gap_stocks = []   # Gap Up (Open > Prev High) or Gap Down (Open < Prev Low)
@@ -435,7 +435,7 @@ def analyze_open_high_low(stock_dict, tolerance_pct=0.15):
             "stoploss": stoploss,
             "target_1": target_1,
             "target_2": target_2,
-            "exact_match": diff_from_open < 0.02,
+            "exact_match": diff_from_open == 0.0,
             "momentum_confirmed": momentum_confirmed,
             "prev_day_high": round(prev_day_high, 2),
             "prev_day_low": round(prev_day_low, 2)
@@ -537,7 +537,7 @@ def run_screener(tolerance_pct=0.15):
     return results
 
 if __name__ == "__main__":
-    tolerance = 0.15
+    tolerance = 0.00
     if len(sys.argv) > 1:
         try:
             tolerance = float(sys.argv[1])
